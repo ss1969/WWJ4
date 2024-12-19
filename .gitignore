@@ -1,0 +1,10 @@
+*.soc
+*.bin
+*.binpkg
+*.diff
+*.log
+*.par
+/.xmake/
+/build/
+/out/
+

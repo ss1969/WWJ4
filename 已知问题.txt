@@ -1,0 +1,5 @@
+CLI
+    sysinfo会重启
+    pwm callback 可以设置，但是调用会重启
+    scanf用hhx无效
+    irq里面连usart_print_async都不行，更别说普通的，直接重启，只能用 LUAT_DEBUG_PRINT
