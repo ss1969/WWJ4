@@ -41,7 +41,9 @@
         "utility": "c",
         "pad.h": "c",
         "driver_common.h": "c",
-        "uart.h": "c"
+        "uart.h": "c",
+        "gpio.h": "c",
+        "wgpio.h": "c"
     },
     "files.autoSave": "onFocusChange"
 }

@@ -17,8 +17,8 @@ typedef struct {
 
 static uart_config_t uart_configs[] = {
     {1, 115200, 8, 1, 0},
-    {2, 115200, 8, 1, 0},
-    {3, 115200, 8, 1, 0},
+    // {2, 115200, 8, 1, 0},
+    // {3, 115200, 8, 1, 0},
 };
 
 #define UART_DEBUG               UART_1
@@ -26,7 +26,7 @@ static uart_config_t uart_configs[] = {
 #define UART_RINGBUF_SIZE        1024
 
 int uart_tx(int uart_id, const char* buffer, size_t buffersize);
-int GETC(char *ch);
+int uart_getchar(char *ch);
 int uart_print(const char* format, ...);
 int uart_print_async(const char* format, ...);
 

@@ -2,7 +2,7 @@ local TARGET_NAME = os.scriptdir():match(".+[/\\]([%w_]+)")
 project_dir = os.scriptdir()
 project_name = project_dir:match(".+[/\\]([%w_]+)")
 
-csdk_root = "../luatos-soc-2024/" --csdk根目录,可自行修改
+csdk_root = "../../luatos-soc-2024/" --csdk根目录,可自行修改
 includes(csdk_root.."csdk.lua")
 description_common()
 

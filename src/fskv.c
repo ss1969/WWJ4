@@ -13,6 +13,11 @@
 #include "luat_mem.h"
 
 luat_rtos_task_handle task_fskv_handle;
+static luat_rtos_timer_t timer0;
+#define FSKV_SAVE_IMPORTANT_INTERVAL 1000
+static uint32_t _c, _d;
+
+
 
 // return 1 success
 static int ef_get_num(const char* key, uint32_t *data)
@@ -71,6 +76,8 @@ static void fskv_read_data(void)
 	ef_get_str("wxurl", svUrlWXPay);
 	ef_get_num8("dstatus", &svDeviceStatus);
 	ef_get_num8("dtype", &svDeviceType);
+	ef_get_num8("coinpin", &svCoinNormal);
+	ef_get_num8("przpin", &svPrizeNormal);
 	ef_get_num8("pulsewidth", &svCoinPulseWidth);
 	ef_get_num8("pulsec1", &svCoinPulseWidthInLow);
 	ef_get_num8("pulsec2", &svCoinPulseWidthInHigh);
@@ -79,6 +86,9 @@ static void fskv_read_data(void)
 	ef_get_num8("dir", &svCardDirection);
 	ef_get_num8("coinbtn1", &svCoinPerPlay);
 	ef_get_num8("coinbtn2", &svCoinPerPlay2);
+	ef_get_num8("tepulse", &svTEpulse);
+	ef_get_num8("tesw1", &svTEsw1);
+	ef_get_num8("tesw2", &svTEsw2);
 }
 
 /* reset counters */
@@ -96,6 +106,8 @@ static void fskv_init_data(void)
 	strcpy(svUrlWXPay, "");
 	svDeviceStatus = 1;
 	svDeviceType = 1;
+	svCoinNormal = 1;
+	svPrizeNormal = 0;
 	svCoinPulseWidth = 40;
 	svCoinPulseWidthInLow = 15;
 	svCoinPulseWidthInHigh = 105;
@@ -104,9 +116,14 @@ static void fskv_init_data(void)
 	svCardDirection = 0;
 	svCoinPerPlay = 1;
 	svCoinPerPlay2 = 2;
+	svTEpulse = 80;
+	svTEsw1 = 0;
+	svTEsw2 = 0;
 	ef_set_str("wxurl", svUrlWXPay);
 	ef_set_num8("dstatus", svDeviceStatus);
 	ef_set_num8("dtype", svDeviceType);
+	ef_set_num8("coinpin", svCoinNormal);
+	ef_set_num8("przpin", svPrizeNormal);
 	ef_set_num8("pulsewidth", svCoinPulseWidth);
 	ef_set_num8("pulsec1", svCoinPulseWidthInLow);
 	ef_set_num8("pulsec2", svCoinPulseWidthInHigh);
@@ -115,18 +132,14 @@ static void fskv_init_data(void)
 	ef_set_num8("dir", svCardDirection);
 	ef_set_num8("coinbtn1", svCoinPerPlay);
 	ef_set_num8("coinbtn2", svCoinPerPlay2);
+	ef_set_num8("tepulse", svTEpulse);
+	ef_set_num8("tesw1", svTEsw1);
+	ef_set_num8("tesw2", svTEsw2);
 }
 
-void fskv_init(void)
+static void fskv_init(void)
 {
 	LUAT_DEBUG_PRINT("fskv_init start");
-	/*
-		出现异常后默认为死机重启
-		demo这里设置为LUAT_DEBUG_FAULT_HANG_RESET出现异常后尝试上传死机信息给PC工具，上传成功或者超时后重启
-		如果为了方便调试，可以设置为LUAT_DEBUG_FAULT_HANG，出现异常后死机不重启
-		但量产出货一定要设置为出现异常重启！！！！！！！！！
-	*/
-	luat_debug_set_fault_mode(LUAT_DEBUG_FAULT_HANG_RESET);
 	luat_fskv_init();
 
 	size_t using_sz, max_sz, kv_count;
@@ -153,59 +166,80 @@ static void fskv_main_rountine(void *param)
 			continue;
 		}
 
-		int p1 = event.param1;
-		LUAT_DEBUG_PRINT("luat_rtos_event_recv id:%d p1:%d", event.id, p1);
+		LUAT_DEBUG_PRINT("luat_rtos_event_recv id:%d param1:%d", event.id, event.param1);
 		switch(event.id)
 		{
 			case FSKV_EVT_COUNTER_C:
+				svCounterC = event.param1;
 				ef_set_num("c", svCounterC);
 				break;
 			case FSKV_EVT_COUNTER_D:
+				svCounterD = event.param1;
 				ef_set_num("d", svCounterD);
 				break;
+			case FSKV_EVT_COIN_PIN_NORMAL:
+				svCoinNormal = event.param1;
+				ef_set_num("coinpin", svCoinNormal);
+				break;
+			case FSKV_EVT_PRZ_PIN_NORMAL:
+				svCoinNormal = event.param1;
+				ef_set_num("prize pin", svPrizeNormal);
+				break;
 			case FSKV_EVT_COINER_PULSE:
-				svCoinPulseWidth = p1;
+				svCoinPulseWidth = event.param1;
 				ef_set_num8("pulsewidth", svCoinPulseWidth);
 				break;
 			case FSKV_EVT_COIN_IN_LOW:
-				svCoinPulseWidthInLow = p1;
+				svCoinPulseWidthInLow = event.param1;
 				ef_set_num8("pulsec1", svCoinPulseWidthInLow);
 				break;
 			case FSKV_EVT_COIN_IN_HIGH:
-				svCoinPulseWidthInHigh = p1;
+				svCoinPulseWidthInHigh = event.param1;
 				ef_set_num8("pulsec2", svCoinPulseWidthInHigh);
 				break;
 			case FSKV_EVT_PRZ_IN_LOW:
-				svPrizePulseWidthInLow = p1;
+				svPrizePulseWidthInLow = event.param1;
 				ef_set_num8("pulsec3", svPrizePulseWidthInLow);
 				break;
 			case FSKV_EVT_PRZ_IN_HIGH:
-				svPrizePulseWidthInHigh = p1;
+				svPrizePulseWidthInHigh = event.param1;
 				ef_set_num8("pulsec4", svPrizePulseWidthInHigh);
 				break;
 			case FSKV_EVT_DEV_STATUS:
-				svDeviceStatus = p1;
+				svDeviceStatus = event.param1;
 				ef_set_num8("dstatus", svDeviceStatus);
 				break;
 			case FSKV_EVT_DEV_TYPE:
-				svDeviceType = p1;
+				svDeviceType = event.param1;
 				ef_set_num8("dtype", svDeviceType);
 				break;
 			case FSKV_EVT_DEV_DIR:
-				svCardDirection = p1;
+				svCardDirection = event.param1;
 				ef_set_num8("pulsewidth", svCardDirection);
 				break;
 			case FSKV_EVT_WX_URL:
-				strncpy(svUrlWXPay, (char *)p1, sizeof(svUrlWXPay));
+				strncpy(svUrlWXPay, (char *)event.param1, sizeof(svUrlWXPay));
 				ef_set_str("wxurl", svUrlWXPay);
 				break;
 			case FSKV_EVT_COIN_BTN1:
-				svCoinPerPlay = p1;
+				svCoinPerPlay = event.param1;
 				ef_set_num8("coinbtn1", svCoinPerPlay);
 				break;
 			case FSKV_EVT_COIN_BTN2:
-				svCoinPerPlay2 = p1;
+				svCoinPerPlay2 = event.param1;
 				ef_set_num8("coinbtn2", svCoinPerPlay2);
+				break;
+			case FSKV_EVT_TE_PULSE:
+				svTEsw1 = event.param1;
+				ef_set_num8("tepulse", svTEpulse);
+				break;
+			case FSKV_EVT_TE_SW1:
+				svTEsw1 = event.param1;
+				ef_set_num8("tepw1", svTEsw1);
+				break;
+			case FSKV_EVT_TE_SW2:
+				svTEsw2 = event.param1;
+				ef_set_num8("tepw2", svTEsw2);
 				break;
 			default:
 				break;
@@ -218,10 +252,26 @@ void fskv_save_async(FSKV_ITEM item, uint32_t p1)
 	luat_rtos_event_send(task_fskv_handle, item, p1, 0, 0, 1000);
 }
 
+static void timer_important_v(void *param)
+{
+	if( _c != svCounterC ){
+		_c = svCounterC;
+		fskv_save_async(FSKV_EVT_COUNTER_C, svCounterC);
+	}
+	if( _d != svCounterD ){
+		_d = svCounterD;
+		fskv_save_async(FSKV_EVT_COUNTER_D, svCounterD);
+	}
+}
+
 void task_fskv(void)
 {
 	int ret;
 	fskv_init();
+	_c = svCounterC;
+	_d = svCounterD;
 
-	luat_rtos_task_create(&task_fskv_handle, 4*1024, 50, "task_fskv", fskv_main_rountine, NULL, 0);
+	luat_rtos_task_create(&task_fskv_handle, 4*1024, 60, "task_fskv", fskv_main_rountine, NULL, 0);
+    luat_rtos_timer_create(&timer0);
+	luat_rtos_timer_start(timer0, FSKV_SAVE_IMPORTANT_INTERVAL, 1, timer_important_v, NULL);
 }

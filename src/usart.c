@@ -84,7 +84,7 @@ int uart_tx(int uart_id, const char* buffer, size_t buffersize)
     return result;
 }
 
-int GETC(char *ch)
+int uart_getchar(char *ch)
 {
 	return RingBufRead1Ch(&rbuf[uart_dbg_rbuf_id], ch);
 }
@@ -150,7 +150,15 @@ static void uart_main_routine(void *param)
 
 void task_uart(void)
 {
+ 	/*
+		出现异常后默认为死机重启
+		demo这里设置为 LUAT_DEBUG_FAULT_HANG_RESET 出现异常后尝试上传死机信息给PC工具，上传成功或者超时后重启
+		如果为了方便调试，可以设置为 LUAT_DEBUG_FAULT_HANG ，出现异常后死机不重启
+		但量产出货一定要设置为出现异常重启！！！！！！！！！
+	*/
+    luat_debug_set_fault_mode(LUAT_DEBUG_FAULT_HANG_RESET);
+
     uart_init();  // 初始化 UART
-    luat_rtos_task_create(&task_uart_handle, 4*1024, 20, "task_uart", uart_main_routine, NULL, 0);
+    luat_rtos_task_create(&task_uart_handle, 4*1024, 50, "task_uart", uart_main_routine, NULL, 0);
 }
 

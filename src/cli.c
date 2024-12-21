@@ -115,7 +115,7 @@ int cliGetInput(void)
 {
 	char ch;
 	while (1){
-		if(GETC(&ch) == 0){
+		if(uart_getchar(&ch) == 0){
 			DELAY(10);
 			continue;
 		}
@@ -376,7 +376,7 @@ void cli_main_routine(void *param)
 	uart_print("\r\n!!! PRESS Ctrl-C FOR CLI !!!\r\n\r\n");
 
 	while(true){
-		if(GETC(&ch) == 0){
+		if(uart_getchar(&ch) == 0){
 			DELAY(100);
 			continue;
 		}
@@ -402,5 +402,5 @@ void cli_main_routine(void *param)
 
 void task_console(void)
 {
-    luat_rtos_task_create(&task_cli_handle,4*1024,50,"task_cli",cli_main_routine,NULL,0);
+    luat_rtos_task_create(&task_cli_handle, 4*1024, 10, "task_cli", cli_main_routine, NULL, 0);
 }

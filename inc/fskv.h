@@ -8,6 +8,8 @@ typedef enum _FSKV_ITEM
 {
     FSKV_EVT_COUNTER_C = 0,
     FSKV_EVT_COUNTER_D,
+    FSKV_EVT_COIN_PIN_NORMAL,
+    FSKV_EVT_PRZ_PIN_NORMAL,
     FSKV_EVT_COINER_PULSE,
     FSKV_EVT_COIN_IN_LOW,
     FSKV_EVT_COIN_IN_HIGH,
@@ -18,10 +20,14 @@ typedef enum _FSKV_ITEM
     FSKV_EVT_DEV_DIR,
     FSKV_EVT_WX_URL,
     FSKV_EVT_COIN_BTN1,
-    FSKV_EVT_COIN_BTN2
+    FSKV_EVT_COIN_BTN2,
+    FSKV_EVT_TE_PULSE,
+    FSKV_EVT_TE_SW1,
+    FSKV_EVT_TE_SW2,
 }FSKV_ITEM;
 
-void fskv_init(void);
 void fskv_save_async(FSKV_ITEM item, uint32_t p1);
+
+#define FSKV_SAVE_DELAY 5000
 
 #endif

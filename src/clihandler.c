@@ -4,12 +4,14 @@
 #include "luat_mem.h"
 #include "luat_pwm.h"
 #include "luat_rtc.h"
+#include "luat_gpio.h"
 
 #include "wrapper.h"
 #include "vt_ctrl.h"
 #include "str2x.h"
 #include "sysvars.h"
 #include "usart.h"
+#include "wgpio.h"
 
 #include "cli.h"
 
@@ -73,6 +75,22 @@ void cmd_pwm(int argc, char** argv)
 }
 
 //---------------------------------------------------------------------------------------------
+void cmd_pin(int argc, char** argv)
+{
+	uint32_t id, value;
+	if((Str2Dec32(argv[1], &id) == 0)){
+		uart_print("id error :%d\n", id);
+		return;
+	}
+	if((Str2Dec32(argv[2], &value) == 0)){
+		uart_print("value error\n");
+		return;
+	}
+	luat_gpio_set(id, value == 0 ? 0 : 1);
+	uart_print("Set Pin %d to %d\n", id, value);
+}
+
+//---------------------------------------------------------------------------------------------
 void cmd_sysinfo(int argc, char** argv)
 {
 	char* pcWriteBuffer = (char*)MALLOC(1024);
@@ -104,21 +122,65 @@ void cmd_rtc(int argc, char** argv)
 }
 
 //---------------------------------------------------------------------------------------------
-void cmd_stat(int argc, char** argv)
+void cmd_env(int argc, char** argv)
 {
-    uart_print("svCounterC %d\n", svCounterC);
-    uart_print("svCounterD %d\n", svCounterD);
-    uart_print("svUrlWXPay %s\n", svUrlWXPay);
-    uart_print("svDeviceStatus %d\n", svDeviceStatus);
-    uart_print("svDeviceType %d\n", svDeviceType);
-    uart_print("svCoinPulseWidth %d\n", svCoinPulseWidth);
-    uart_print("svCoinPulseWidthInLow %d\n", svCoinPulseWidthInLow);
-    uart_print("svCoinPulseWidthInHigh %d\n", svCoinPulseWidthInHigh);
-    uart_print("svPrizePulseWidthInLow %d\n", svPrizePulseWidthInLow);
-    uart_print("svPrizePulseWidthInHigh %d\n", svPrizePulseWidthInHigh);
-    uart_print("svCardDirection %d\n", svCardDirection);
-    uart_print("svCoinPerPlay %d\n", svCoinPerPlay);
-    uart_print("svCoinPerPlay2 %d\n", svCoinPerPlay2);
+	uart_print("PIN COIN_IN : %d\n", luat_gpio_get(PIN_COIN_IN));
+	uart_print("PIN PRIZE_IN : %d\n", luat_gpio_get(PIN_PRZ_IN));
+
+    uart_print("0  svCounterC %d\n", svCounterC);
+    uart_print("1  svCounterD %d\n", svCounterD);
+    uart_print("2  svUrlWXPay %s\n", svUrlWXPay);
+    uart_print("3  svDeviceStatus %d\n", svDeviceStatus);
+    uart_print("4  svDeviceType %d\n", svDeviceType);
+    uart_print("5  svCoinNormal %d\n", svCoinNormal);
+    uart_print("6  svPrizeNormal %d\n", svPrizeNormal);
+    uart_print("7  svCoinPulseWidth %d\n", svCoinPulseWidth);
+    uart_print("8  svCoinPulseWidthInLow %d\n", svCoinPulseWidthInLow);
+    uart_print("9  svCoinPulseWidthInHigh %d\n", svCoinPulseWidthInHigh);
+    uart_print("10 svPrizePulseWidthInLow %d\n", svPrizePulseWidthInLow);
+    uart_print("11 svPrizePulseWidthInHigh %d\n", svPrizePulseWidthInHigh);
+    uart_print("12 svCardDirection %d\n", svCardDirection);
+    uart_print("13 svCoinPerPlay %d\n", svCoinPerPlay);
+    uart_print("14 svCoinPerPlay2 %d\n", svCoinPerPlay2);
+    uart_print("15 svTEsw1 %d\n", svTEsw1);
+    uart_print("16 svTEsw2 %d\n", svTEsw2);
+    uart_print("17 svTEticketCount %d\n", svTEticketCount);
+    uart_print("18 svTEpulse %d\n", svTEpulse);
+}
+
+void cmd_set(int argc, char** argv)
+{
+	uint32_t id, value;
+	if((Str2Dec32(argv[1], &id) == 0)){
+		uart_print("id error :%d\n", id);
+		return;
+	}
+	if((Str2Dec32(argv[2], &value) == 0)){
+		uart_print("value error\n");
+		return;
+	}
+
+	switch(id){
+    	case  0: svCounterC = value; uart_print("set svCounterC %d\n", svCounterC); break;
+    	case  1: svCounterD = value; uart_print("set svCounterD %d\n", svCounterD); break;
+    	// case  2: xxxx = value; uart_print("set svUrlWXPay %s\n", svUrlWXPay); break;
+    	case  3: svDeviceStatus = value; uart_print("set svDeviceStatus %d\n", svDeviceStatus); break;
+    	case  4: svDeviceType = value; uart_print("set svDeviceType %d\n", svDeviceType); break;
+    	case  5: svCoinNormal = value; uart_print("set svCoinNormal %d\n", svCoinNormal); break;
+    	case  6: svPrizeNormal = value; uart_print("set svPrizeNormal %d\n", svPrizeNormal); break;
+    	case  7: svCoinPulseWidth = value; uart_print("set svCoinPulseWidth %d\n", svCoinPulseWidth); break;
+    	case  8: svCoinPulseWidthInLow = value; uart_print("set svCoinPulseWidthInLow %d\n", svCoinPulseWidthInLow); break;
+    	case  9: svCoinPulseWidthInHigh = value; uart_print("set svCoinPulseWidthInHigh %d\n", svCoinPulseWidthInHigh); break;
+    	case 10: svPrizePulseWidthInLow = value; uart_print("set svPrizePulseWidthInLow %d\n", svPrizePulseWidthInLow); break;
+    	case 11: svPrizePulseWidthInHigh = value; uart_print("set svPrizePulseWidthInHigh %d\n", svPrizePulseWidthInHigh); break;
+    	case 12: svCardDirection = value; uart_print("set svCardDirection %d\n", svCardDirection); break;
+    	case 13: svCoinPerPlay = value; uart_print("set svCoinPerPlay %d\n", svCoinPerPlay); break;
+    	case 14: svCoinPerPlay2 = value; uart_print("set svCoinPerPlay2 %d\n", svCoinPerPlay2); break;
+    	case 15: svTEsw1 = value; uart_print("set svTEsw1 %d\n", svTEsw1); break;
+    	case 16: svTEsw2 = value; uart_print("set svTEsw2 %d\n", svTEsw2); break;
+    	case 17: svTEticketCount = value; uart_print("set svTEticketCount %d\n", svTEticketCount); break;
+    	case 18: svTEpulse = value; uart_print("set svTEpulse %d\n", svTEpulse); break;
+	}
 }
 
 //---------------------------------------------------------------------------------------------
@@ -161,13 +223,16 @@ struct cli_command cli[] = {
 	{"sysinfo",			"os information",	cmd_sysinfo},
 	{"tick",			"tick",				cmd_tick},
 	{"pwm",				"pwm [ch] [Hz] [Ratio] [Count]",				cmd_pwm},
+	{"pin",             "pin [pin id] [value]",             cmd_pin},
 	{"time",            "time",             cmd_rtc},
-	{"stat",            "stat",             cmd_stat},
+	{"env",              "env",             cmd_env},
+	{"set",              "set [env id] [value]",             cmd_set},
+
 	{"dbg",             "dbg",              cmd_sys_debugcoin},
-	{"coin",            "coint [count]",         cmd_coin},
+	{"coin",            "coint [count]",    cmd_coin},
 	// {"prize",           "prize [count]",         cmd_prize},
-	{"t1",            "test1",         cmd_test1},
-	{"t2",            "test2",         cmd_test2},
+	{"t1",            "test1",        	    cmd_test1},
+	{"t2",            "test2",         		cmd_test2},
 
 
 };
