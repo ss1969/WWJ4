@@ -17,7 +17,6 @@ typedef unsigned char            uint8_t;
 #define false                    0
 
 
-
-int uart_print(const char* format, ...);
+void system_halt_for_update(void);
 
 #endif

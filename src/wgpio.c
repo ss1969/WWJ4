@@ -18,7 +18,7 @@
 #include "wgpio.h"
 
 /* handles */
-luat_rtos_task_handle task_gpio_handle;
+static luat_rtos_task_handle task_gpio_handle;
 static luat_rtos_timer_t timer0;
 static luat_rtos_timer_t timer1;
 
@@ -268,3 +268,23 @@ void task_gpio(void)
     luat_rtos_task_create(&task_gpio_handle, 4*1024, 90, "task_gpio", gpio_main_routine, NULL, 0);
 }
 
+void gpio_deinit(void)
+{
+	luat_rtos_task_suspend(task_gpio_handle);
+	luat_rtos_task_delete(task_gpio_handle);
+
+	luat_rtos_timer_stop(timer0);
+	luat_rtos_timer_delete(timer0);
+	luat_rtos_timer_stop(timer1);
+	luat_rtos_timer_delete(timer1);
+
+	luat_gpio_close(PIN_ALT_IN  );
+	luat_gpio_close(PIN_COIN_IN );
+	luat_gpio_close(PIN_PRZ_IN  );
+	luat_gpio_close(PIN_COIN_OUT);
+	luat_gpio_close(PIN_PRZ_OUT );
+	luat_gpio_close(PIN_SOCKET_3);
+	luat_gpio_close(PIN_SOCKET_4);
+	luat_gpio_close(PIN_LED_D1  );
+	luat_gpio_close(PIN_LED_D2  );
+}

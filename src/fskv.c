@@ -12,7 +12,7 @@
 #include "luat_debug.h"
 #include "luat_mem.h"
 
-luat_rtos_task_handle task_fskv_handle;
+static luat_rtos_task_handle task_fskv_handle;
 static luat_rtos_timer_t timer0;
 #define FSKV_SAVE_IMPORTANT_INTERVAL 1000
 static uint32_t _c, _d;
@@ -247,12 +247,7 @@ static void fskv_main_rountine(void *param)
 	}
 }
 
-void fskv_save_async(FSKV_ITEM item, uint32_t p1)
-{
-	luat_rtos_event_send(task_fskv_handle, item, p1, 0, 0, 1000);
-}
-
-static void timer_important_v(void *param)
+static void timer_save_important_kv(void *param)
 {
 	if( _c != svCounterC ){
 		_c = svCounterC;
@@ -264,6 +259,11 @@ static void timer_important_v(void *param)
 	}
 }
 
+void fskv_save_async(FSKV_ITEM item, uint32_t p1)
+{
+	luat_rtos_event_send(task_fskv_handle, item, p1, 0, 0, 1000);
+}
+
 void task_fskv(void)
 {
 	int ret;
@@ -273,5 +273,14 @@ void task_fskv(void)
 
 	luat_rtos_task_create(&task_fskv_handle, 4*1024, 60, "task_fskv", fskv_main_rountine, NULL, 0);
     luat_rtos_timer_create(&timer0);
-	luat_rtos_timer_start(timer0, FSKV_SAVE_IMPORTANT_INTERVAL, 1, timer_important_v, NULL);
+	luat_rtos_timer_start(timer0, FSKV_SAVE_IMPORTANT_INTERVAL, 1, timer_save_important_kv, NULL);
+}
+
+void fskv_deinit(void)
+{
+	// luat_rtos_timer_stop(&timer0);
+	// luat_rtos_timer_delete(&timer0);
+
+	luat_rtos_task_suspend(task_fskv_handle);
+	luat_rtos_task_delete(task_fskv_handle);
 }

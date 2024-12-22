@@ -21,7 +21,6 @@ static luat_rtos_task_handle task_uart_handle;
 #define UART_COUNT               (sizeof(uart_configs) / sizeof(uart_config_t))
 
 static char rx_buffer[UART_COUNT][UART_RINGBUF_SIZE];  // 每个 UART 1KB 接收缓冲区
-static luat_rtos_semaphore_t sema[UART_COUNT];
 static RINGBUFFER_T rbuf[UART_COUNT];
 static int uart_dbg_rbuf_id;
 
@@ -68,14 +67,7 @@ static void uart_init() {
 	LUAT_DEBUG_PRINT("uart_init end");
 }
 
-static void uart_deinit() {
-    for (int i = 0; i < UART_COUNT; i++) {
-        luat_uart_close(uart_configs[i].id);
-        luat_rtos_semaphore_delete(sema[i]);
-    }
-}
-
-int uart_tx(int uart_id, const char* buffer, size_t buffersize)
+int usart_tx(int uart_id, const char* buffer, size_t buffersize)
 {
     int id = get_uart_config_index(uart_id);
     if (id == -1)
@@ -84,13 +76,12 @@ int uart_tx(int uart_id, const char* buffer, size_t buffersize)
     return result;
 }
 
-int uart_getchar(char *ch)
+int usart_getchar(char *ch)
 {
 	return RingBufRead1Ch(&rbuf[uart_dbg_rbuf_id], ch);
 }
 
-
-int uart_print(const char* format, ...)
+int usart_print(const char* format, ...)
 {
     char buffer[256];
     va_list args;
@@ -106,7 +97,7 @@ int uart_print(const char* format, ...)
     return length;
 }
 
-int uart_print_async(const char* format, ...)
+int usart_print_async(const char* format, ...)
 {
     char buffer[256];
     va_list args;
@@ -156,9 +147,18 @@ void task_uart(void)
 		如果为了方便调试，可以设置为 LUAT_DEBUG_FAULT_HANG ，出现异常后死机不重启
 		但量产出货一定要设置为出现异常重启！！！！！！！！！
 	*/
-    luat_debug_set_fault_mode(LUAT_DEBUG_FAULT_HANG_RESET);
+   luat_debug_set_fault_mode(LUAT_DEBUG_FAULT_HANG);
 
     uart_init();  // 初始化 UART
-    luat_rtos_task_create(&task_uart_handle, 4*1024, 50, "task_uart", uart_main_routine, NULL, 0);
+    luat_rtos_task_create(&task_uart_handle, 4*1024, 80, "task_uart", uart_main_routine, NULL, 0);
 }
 
+void uart_deinit(void)
+{
+	luat_rtos_task_suspend(task_uart_handle);
+	luat_rtos_task_delete(task_uart_handle);
+
+    for (int i = 0; i < UART_COUNT; i++) {
+        luat_uart_close(uart_configs[i].id);
+    }
+}

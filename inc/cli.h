@@ -15,8 +15,6 @@ struct cli_command {
 	void (*function) (int argc, char **argv);
 };
 
-extern luat_rtos_task_handle task_cli_handle;
-
 /* User func */
 void CliPrintCmdList(void);
 

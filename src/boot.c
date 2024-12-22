@@ -12,7 +12,10 @@
 #include "usart.h"
 
 
-luat_rtos_task_handle task_bootup_handle;
+static luat_rtos_task_handle task_bootup_handle;
+
+extern const char* luat_mcu_unique_id(size_t* t);
+
 static void boot_main_routine(void *param)
 {
     while (1)
@@ -38,10 +41,22 @@ static void boot_main_routine(void *param)
 */
 void task_bootup(void)
 {
-
     LUAT_DEBUG_PRINT("Power on reason : %d", luat_pm_get_poweron_reason());
-    uart_print("Power on reason : %d", luat_pm_get_poweron_reason());
+    usart_print("Power on reason : %d", luat_pm_get_poweron_reason());
+
+    size_t len;
+    char *id = luat_mcu_unique_id(&len);
+    usart_print("System ID :");
+    for(int i = 0; i<len; i++){
+        usart_print("%02x", id[i]);
+    }
+    usart_print("\n");
 
     luat_rtos_task_create(&task_bootup_handle, 2*1024, 1, "task_boot", boot_main_routine, NULL, 0);
 }
 
+void boot_deinit(void)
+{
+    luat_rtos_task_suspend(task_bootup_handle);
+	luat_rtos_task_delete(task_bootup_handle);
+}

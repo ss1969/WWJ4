@@ -3,11 +3,12 @@
     pwm callback 可以设置，但是调用会重启
     scanf用hhx无效
     irq里面连usart_print_async都不行，更别说普通的，直接重启，只能用 LUAT_DEBUG_PRINT
-    下载经常失败：猜测：能deinit的都deinit后，可以直接下载，deinit也可以为ota准备
-
-    gpio13不输出
-    软件定时器不准确
     gpio12\13和uart冲突，会造成20秒一次重启，具体uart未定
+    luat_rtos_timer_stop(&timer_fskv);  会导致重启
+    电源不稳会容易下载失败，必须一致按着BOOT直到开始
+
 
 需要解决
     重启一次D 增加1
+    软件定时器不准确
+    OTA未测试

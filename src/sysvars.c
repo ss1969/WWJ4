@@ -6,7 +6,7 @@
 volatile uint32_t svCounterC = 0;
 volatile uint32_t svCounterD = 0;
 volatile uint32_t svTicketIn = 0;	/* coin/doll counter, 插入彩票数字 */
-volatile uint32_t svCoinInsert = 20; /* 模拟投币给主板个数, 给定时器使用。必须是2的倍数。每2表示投一次币 */
+volatile uint32_t svCoinInsert = 0; /* 模拟投币给主板个数, 给定时器使用。必须是2的倍数。每2表示投一次币 */
 
 /* vars 系统状态控制 */
 uint8_t svDbgOn = 0;		/* 显示Debug信息 */

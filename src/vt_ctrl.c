@@ -9,6 +9,7 @@
 #include "wrapper.h"
 #include "vt_ctrl.h"
 
+extern int usart_print(const char* format, ...);
 
 /*------------------------------------------------------------------------
  * Function:   CON_VT_Set_Cursor_to_XY()
@@ -51,7 +52,7 @@ void CON_VT_Set_Cursor_to_XY(uint16_t row, uint16_t column)
 	*temp_ptr++ = 'H';
 	*temp_ptr = VT_NULL;
 
-	uart_print("%s", escape_str);
+	usart_print("%s", escape_str);
 }
 
 /*------------------------------------------------------------------------
@@ -109,7 +110,7 @@ void CON_VT_Set_Text_Attributes(uint16_t attribute)
 	*temp_ptr++ = 'm';
 	*temp_ptr = VT_NULL;
 
-	uart_print("%s", escape_str);
+	usart_print("%s", escape_str);
 }
 
 /*------------------------------------------------------------------------
@@ -131,7 +132,7 @@ void CON_VT_Save_Cursor_Position(void)
 	*temp_ptr++ = '7';
 
 	*temp_ptr = VT_NULL;
-	uart_print("%s", escape_str);
+	usart_print("%s", escape_str);
 }
 
 /*------------------------------------------------------------------------
@@ -154,7 +155,7 @@ void CON_VT_Restore_Cursor_Position(void)
 	*temp_ptr++ = '8';
 
 	*temp_ptr = VT_NULL;
-	uart_print("%s", escape_str);
+	usart_print("%s", escape_str);
 }
 
 /*------------------------------------------------------------------------
@@ -178,7 +179,7 @@ void CON_VT_Scroll_Screen(void)
 	*temp_ptr++ = 'r';
 
 	*temp_ptr = VT_NULL;
-	uart_print("%s", escape_str);
+	usart_print("%s", escape_str);
 }
 
 /*------------------------------------------------------------------------
@@ -211,7 +212,7 @@ void CON_VT_Erase_Screen(uint16_t erase_mode)
 	*temp_ptr++ = 'J' ;
 	*temp_ptr = VT_NULL ;
 
-	uart_print("%s", escape_str);
+	usart_print("%s", escape_str);
 }
 
 
