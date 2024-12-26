@@ -11,6 +11,10 @@
 #define PIN_LED_D1      HAL_GPIO_26
 #define PIN_LED_D2      HAL_GPIO_27
 
+int gpio_toggle(int pin);
+void gpio_coin_pulse_gen(int count);
+void gpio_led(int id, bool on);
+void gpio_set_coin_pulse_width(int widthMs);
 
 
 #endif

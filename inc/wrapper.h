@@ -16,7 +16,7 @@ typedef unsigned char            uint8_t;
 #define true                     1
 #define false                    0
 
-
-void system_halt_for_update(void);
-
+#define TICK_PER_MS              26000
+#define TICK2MS(x)               ((x) / TICK_PER_MS)
+#define MS2TICK(x)               ((x) * TICK_PER_MS)
 #endif

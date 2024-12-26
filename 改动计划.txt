@@ -1,11 +1,23 @@
-1，串口改成DBG和LCD复用的一组，以便以后不贴
-2，COIN_OUT_LA,COIN_OUT_HA,COIN_OUT_WATCH 改成和GPIO12的电路一样，分别从GPIOx，PWM1，PWM2引出
+1，根据https://docs.openluat.com/air780ep/product/file/Air780EP%E7%94%A8%E4%BA%8ELuatOS%E4%BD%BF%E7%94%A8%E6%96%B9%E5%BC%8F%E6%97%B6%E7%9A%84%E5%8F%82%E8%80%83%E8%AE%BE%E8%AE%A1V20241031.pdf
+更新各部分电路
+2，串口改成DBG和LCD复用的一组，以便以后不贴
+3，COIN_OUT_LA,COIN_OUT_HA,COIN_OUT_WATCH拆开，分别从GPIOx，PWM1，PWM2引出
 	PWM1 - GPIO24 - PIN20
 	PWM2 - GPIO25 - PIN107
-3，GPIO12换成 PWM4 - GPIO27 - PIN16
-4，PCB加时间戳，版本号，名字
-5，其余电源修正等，BOOT和RESET加开关，12V输入加一个自恢复保险丝0.5A的
-6，3个输出加二极管防12V倒灌？
+4，PRZ_OUT换成 PWM4 - GPIO27 - PIN16
+5，BOOT和RESET加开关，12V输入加一个自恢复保险丝0.5A的，电源改12V和TypeC隔离，C不供电
+6，3个光耦输入加二极管，考虑1N5819
+7, reset加上拉和电容
+8，电源改4.1V，电阻精简
+9，所有丝印规整方向和位置，电路图和pcb都不能有文字重叠，PCB背面丝印标注pin编号，PCB加时间戳，版本号，名字
+10，更新模块pin定义	
+
+
+
+问题需确认：
+测试PRIZE_OUT_BOARD 能否正常模拟彩票机，不行的话换COIN_OUT_HA/COIN_OUT_WATCH
+
+
 
 通用线路
 COIN_IN：投币器（2510-6)
@@ -21,6 +33,18 @@ PRIZE_OUT_BOARD：码表
 PRZ_IN - 主板彩票机OUT（模拟彩票机IN）
 PRIZE_OUT_BOARD - 主板彩票机IN（模拟彩票机OUT）
 
-问题需确认：
-测试PRIZE_OUT_BOARD 能否正常模拟彩票机，不行的话换COIN_OUT_HA/COIN_OUT_WATCH
+真值表：
+COIN_OUT_CPU 1 : HA 0, LA 1, 感性1
+PRZ_OUT_CPU = PRZ_OUT_BOARD
+
+投币器开关：
+SW1：常开常闭，默认常开1，即COIN_OUT_CPU输出0，即LA
+SW2：速度25、50、100ms
+
+
+彩票机开关：
+设置低电平（应该就是低电平启动 SW1）；IN：无票 4.8V，出票时候0V
+输出常闭（SW2）即每一个正pulse为一次出票，平时保持0
+
+
 

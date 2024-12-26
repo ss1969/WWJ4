@@ -3,12 +3,14 @@
     pwm callback 可以设置，但是调用会重启
     scanf用hhx无效
     irq里面连usart_print_async都不行，更别说普通的，直接重启，只能用 LUAT_DEBUG_PRINT
+        io设置上下拉触发的话，会开机触发一次中断，但是这次在中断里无法输出 LUAT_DEBUG_PRINT
     gpio12\13和uart冲突，会造成20秒一次重启，具体uart未定
-    luat_rtos_timer_stop(&timer_fskv);  会导致重启
     电源不稳会容易下载失败，必须一致按着BOOT直到开始
+    下载binpkg不会reset，下载soc会
 
 
 需要解决
-    重启一次D 增加1
     软件定时器不准确
     OTA未测试
+    不自动开机：测试
+    ota：需要上传当前的版本号，在服务器获取url地址，然后使用url地址进行升级。服务器要给出适合当前版本号的差分包。

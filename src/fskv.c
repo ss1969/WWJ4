@@ -14,10 +14,8 @@
 
 static luat_rtos_task_handle task_fskv_handle;
 static luat_rtos_timer_t timer0;
-#define FSKV_SAVE_IMPORTANT_INTERVAL 1000
-static uint32_t _c, _d;
 
-
+static uint32_t _c, _d;	// 2 counter store
 
 // return 1 success
 static int ef_get_num(const char* key, uint32_t *data)
@@ -56,11 +54,13 @@ static int ef_set_num8(const char* key, uint8_t data)
 
 static int ef_get_str(const char* key, char* data)
 {
-	return luat_fskv_get(key, data, sizeof(data));
+	return luat_fskv_get(key, data, FSKV_STRING_MAX_LEN);
 }
 
 static int ef_set_str(const char* key, char *data)
 {
+	if(strlen(data) >= FSKV_STRING_MAX_LEN)
+		LUAT_DEBUG_PRINT("ERROR ef_set_str strlen %s is %dB >= FSKV_STRING_MAX_LEN", data, strlen(data));
 	return luat_fskv_set(key, data, strlen(data));
 }
 
@@ -73,12 +73,12 @@ static void fskv_read_data(void)
 	ef_get_num("d", &svCounterD);
 
 	/* read settings */
-	ef_get_str("wxurl", svUrlWXPay);
+	ef_get_str("urlWxPay", svUrlWXPay);
+	ef_get_str("urlOta", svUrlOta);
 	ef_get_num8("dstatus", &svDeviceStatus);
 	ef_get_num8("dtype", &svDeviceType);
-	ef_get_num8("coinpin", &svCoinNormal);
-	ef_get_num8("przpin", &svPrizeNormal);
-	ef_get_num8("pulsewidth", &svCoinPulseWidth);
+	ef_get_num8("coinsw1", &svCoinSw1);
+	ef_get_num8("coinsw2", &svCoinSw2);
 	ef_get_num8("pulsec1", &svCoinPulseWidthInLow);
 	ef_get_num8("pulsec2", &svCoinPulseWidthInHigh);
 	ef_get_num8("pulsec3", &svPrizePulseWidthInLow);
@@ -92,9 +92,9 @@ static void fskv_read_data(void)
 }
 
 /* reset counters */
-static void fskv_init_data(void)
+static void fskv_reset_data(void)
 {
-	LUAT_DEBUG_PRINT("fskv_init_data");
+	LUAT_DEBUG_PRINT("fskv_reset_data");
 	luat_fskv_clear();
 
 	/* set counters */
@@ -104,11 +104,11 @@ static void fskv_init_data(void)
 
 	/* set settings */
 	strcpy(svUrlWXPay, "");
+	strcpy(svUrlOta, "");
 	svDeviceStatus = 1;
 	svDeviceType = 1;
-	svCoinNormal = 1;
-	svPrizeNormal = 0;
-	svCoinPulseWidth = 40;
+	svCoinSw1 = 1;
+	svCoinSw2 = 40;
 	svCoinPulseWidthInLow = 15;
 	svCoinPulseWidthInHigh = 105;
 	svPrizePulseWidthInLow = 15;
@@ -119,12 +119,12 @@ static void fskv_init_data(void)
 	svTEpulse = 80;
 	svTEsw1 = 0;
 	svTEsw2 = 0;
-	ef_set_str("wxurl", svUrlWXPay);
+	ef_set_str("urlWxPay", svUrlWXPay);
+	ef_set_str("urlOta", svUrlOta);
 	ef_set_num8("dstatus", svDeviceStatus);
 	ef_set_num8("dtype", svDeviceType);
-	ef_set_num8("coinpin", svCoinNormal);
-	ef_set_num8("przpin", svPrizeNormal);
-	ef_set_num8("pulsewidth", svCoinPulseWidth);
+	ef_set_num8("coinsw1", svCoinSw1);
+	ef_set_num8("coinsw2", svCoinSw2);
 	ef_set_num8("pulsec1", svCoinPulseWidthInLow);
 	ef_set_num8("pulsec2", svCoinPulseWidthInHigh);
 	ef_set_num8("pulsec3", svPrizePulseWidthInLow);
@@ -146,7 +146,7 @@ static void fskv_init(void)
 	luat_fskv_stat(&using_sz, &max_sz, &kv_count);
 	LUAT_DEBUG_PRINT("luat_fskv_stat using %d, max %d, count %d", using_sz, max_sz, kv_count);
 	if(kv_count == 0){
-		fskv_init_data();
+		fskv_reset_data();
 	}
 	fskv_read_data();
 
@@ -169,6 +169,7 @@ static void fskv_main_rountine(void *param)
 		LUAT_DEBUG_PRINT("luat_rtos_event_recv id:%d param1:%d", event.id, event.param1);
 		switch(event.id)
 		{
+			// int types
 			case FSKV_EVT_COUNTER_C:
 				svCounterC = event.param1;
 				ef_set_num("c", svCounterC);
@@ -177,17 +178,13 @@ static void fskv_main_rountine(void *param)
 				svCounterD = event.param1;
 				ef_set_num("d", svCounterD);
 				break;
-			case FSKV_EVT_COIN_PIN_NORMAL:
-				svCoinNormal = event.param1;
-				ef_set_num("coinpin", svCoinNormal);
+			case FSKV_EVT_COINER_SW1:
+				svCoinSw1 = event.param1;
+				ef_set_num("coinsw1", svCoinSw1);
 				break;
-			case FSKV_EVT_PRZ_PIN_NORMAL:
-				svCoinNormal = event.param1;
-				ef_set_num("prize pin", svPrizeNormal);
-				break;
-			case FSKV_EVT_COINER_PULSE:
-				svCoinPulseWidth = event.param1;
-				ef_set_num8("pulsewidth", svCoinPulseWidth);
+			case FSKV_EVT_COINER_SW2:
+				svCoinSw2 = event.param1;
+				ef_set_num8("coinsw2", svCoinSw2);
 				break;
 			case FSKV_EVT_COIN_IN_LOW:
 				svCoinPulseWidthInLow = event.param1;
@@ -215,11 +212,7 @@ static void fskv_main_rountine(void *param)
 				break;
 			case FSKV_EVT_DEV_DIR:
 				svCardDirection = event.param1;
-				ef_set_num8("pulsewidth", svCardDirection);
-				break;
-			case FSKV_EVT_WX_URL:
-				strncpy(svUrlWXPay, (char *)event.param1, sizeof(svUrlWXPay));
-				ef_set_str("wxurl", svUrlWXPay);
+				ef_set_num8("dir", svCardDirection);
 				break;
 			case FSKV_EVT_COIN_BTN1:
 				svCoinPerPlay = event.param1;
@@ -235,12 +228,22 @@ static void fskv_main_rountine(void *param)
 				break;
 			case FSKV_EVT_TE_SW1:
 				svTEsw1 = event.param1;
-				ef_set_num8("tepw1", svTEsw1);
+				ef_set_num8("tesw1", svTEsw1);
 				break;
 			case FSKV_EVT_TE_SW2:
 				svTEsw2 = event.param1;
-				ef_set_num8("tepw2", svTEsw2);
+				ef_set_num8("tesw2", svTEsw2);
 				break;
+			// string types
+			case FSKV_EVT_URL_WXPAY:
+				strncpy(svUrlWXPay, (char *)event.param1, sizeof(svUrlWXPay));
+				ef_set_str("urlWxPay", svUrlWXPay);
+				break;
+			case FSKV_EVT_URL_OTA:
+				strncpy(svUrlOta, (char *)event.param1, sizeof(svUrlOta));
+				ef_set_str("urlOta", svUrlOta);
+				break;
+
 			default:
 				break;
 		}
@@ -278,8 +281,8 @@ void task_fskv(void)
 
 void fskv_deinit(void)
 {
-	// luat_rtos_timer_stop(&timer0);
-	// luat_rtos_timer_delete(&timer0);
+	luat_rtos_timer_stop(timer0);
+	luat_rtos_timer_delete(timer0);
 
 	luat_rtos_task_suspend(task_fskv_handle);
 	luat_rtos_task_delete(task_fskv_handle);

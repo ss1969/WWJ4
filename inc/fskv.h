@@ -4,13 +4,15 @@
 #include <stdint.h>
 #include "luat_fskv.h"
 
+#define FSKV_STRING_MAX_LEN 256
+#define FSKV_SAVE_IMPORTANT_INTERVAL 1000
+
 typedef enum _FSKV_ITEM
 {
     FSKV_EVT_COUNTER_C = 0,
     FSKV_EVT_COUNTER_D,
-    FSKV_EVT_COIN_PIN_NORMAL,
-    FSKV_EVT_PRZ_PIN_NORMAL,
-    FSKV_EVT_COINER_PULSE,
+    FSKV_EVT_COINER_SW1,      /* output polar */
+    FSKV_EVT_COINER_SW2,    /* output pulse width */
     FSKV_EVT_COIN_IN_LOW,
     FSKV_EVT_COIN_IN_HIGH,
     FSKV_EVT_PRZ_IN_LOW,
@@ -18,16 +20,18 @@ typedef enum _FSKV_ITEM
     FSKV_EVT_DEV_STATUS,
     FSKV_EVT_DEV_TYPE,
     FSKV_EVT_DEV_DIR,
-    FSKV_EVT_WX_URL,
     FSKV_EVT_COIN_BTN1,
     FSKV_EVT_COIN_BTN2,
     FSKV_EVT_TE_PULSE,
-    FSKV_EVT_TE_SW1,
-    FSKV_EVT_TE_SW2,
+    FSKV_EVT_TE_SW1,        /* turn on / running polar */
+    FSKV_EVT_TE_SW2,        /* output pulse normal polar */
+
+    FSKV_EVT_URL_WXPAY,
+    FSKV_EVT_URL_OTA,
+
 }FSKV_ITEM;
 
 void fskv_save_async(FSKV_ITEM item, uint32_t p1);
 
-#define FSKV_SAVE_DELAY 5000
 
 #endif
