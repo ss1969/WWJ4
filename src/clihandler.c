@@ -148,8 +148,9 @@ static void cmd_rtc(int argc, char** argv)
 static void cmd_env(int argc, char** argv)
 {
 	usart_print("PIN COIN_IN : %d\n", luat_gpio_get(PIN_COIN_IN));
-	usart_print("PIN PRIZE_IN : %d\n", luat_gpio_get(PIN_PRZ_IN));
-    usart_print("svTEticketCount %d\n", svTEticketCount);
+	usart_print("PIN PRIZE_MB_ONOFF : %d\n", luat_gpio_get(PIN_PRZ_MB_ONOFF));
+	usart_print("PIN PRIZE_EXT_COUNT : %d\n", luat_gpio_get(PIN_PRZ_EXT_COUNT));
+    usart_print("Emulated Ticket %d\n", gpio_emuTicket());
 
     usart_print("0  svCounterC %d\n", svCounterC);
     usart_print("1  svCounterD %d\n", svCounterD);
@@ -157,7 +158,6 @@ static void cmd_env(int argc, char** argv)
     usart_print("3  svUrlOta %s\n", svUrlOta);
     usart_print("4  svDeviceStatus %d\n", svDeviceStatus);
     usart_print("5  svDeviceType %d\n", svDeviceType);
-    usart_print("6  svCoinSw1 %d\n", svCoinSw1);
     usart_print("7  svCoinSw2 %d\n", svCoinSw2);
     usart_print("8  svCoinPulseWidthInLow %d\n", svCoinPulseWidthInLow);
     usart_print("9  svCoinPulseWidthInHigh %d\n", svCoinPulseWidthInHigh);
@@ -166,8 +166,6 @@ static void cmd_env(int argc, char** argv)
     usart_print("12 svCardDirection %d\n", svCardDirection);
     usart_print("13 svCoinPerPlay %d\n", svCoinPerPlay);
     usart_print("14 svCoinPerPlay2 %d\n", svCoinPerPlay2);
-    usart_print("15 svTEsw1 %d\n", svTEsw1);
-    usart_print("16 svTEsw2 %d\n", svTEsw2);
     usart_print("17 svTEpulse %d\n", svTEpulse);
 }
 
@@ -194,7 +192,6 @@ static void cmd_set(int argc, char** argv)
     	case  3: fskv_save_async(FSKV_EVT_URL_OTA, (uint32_t)argv[2]); usart_print("set sxUrlUpdate %s\n", argv[2]); break;
     	case  4: fskv_save_async(FSKV_EVT_DEV_STATUS, value); usart_print("set svDeviceStatus %d\n", svDeviceStatus); break;
     	case  5: fskv_save_async(FSKV_EVT_DEV_TYPE, value); ; usart_print("set svDeviceType %d\n", svDeviceType); break;
-    	case  6: fskv_save_async(FSKV_EVT_COINER_SW1, value); usart_print("set svCoinSw1 polar %d\n", svCoinSw1); break;
     	case  7: fskv_save_async(FSKV_EVT_COINER_SW2, value); usart_print("set svCoinSw2 width %d\n", svCoinSw2); break;
     	case  8: fskv_save_async(FSKV_EVT_COIN_IN_LOW, value); usart_print("set svCoinPulseWidthInLow %d\n", svCoinPulseWidthInLow); break;
     	case  9: fskv_save_async(FSKV_EVT_COIN_IN_HIGH, value); usart_print("set svCoinPulseWidthInHigh %d\n", svCoinPulseWidthInHigh); break;
@@ -203,8 +200,6 @@ static void cmd_set(int argc, char** argv)
     	case 12: fskv_save_async(FSKV_EVT_DEV_DIR, value); usart_print("set svCardDirection %d\n", svCardDirection); break;
     	case 13: fskv_save_async(FSKV_EVT_COIN_BTN1, value); usart_print("set svCoinPerPlay %d\n", svCoinPerPlay); break;
     	case 14: fskv_save_async(FSKV_EVT_COIN_BTN2, value); usart_print("set svCoinPerPlay2 %d\n", svCoinPerPlay2); break;
-    	case 15: fskv_save_async(FSKV_EVT_TE_SW1, value); usart_print("set svTEsw1 on polar %d\n", svTEsw1); break;
-    	case 16: fskv_save_async(FSKV_EVT_TE_SW2, value); usart_print("set svTEsw2 pulse normal %d\n", svTEsw2); break;
     	case 17: fskv_save_async(FSKV_EVT_TE_PULSE, value); usart_print("set svTEpulse %d\n", svTEpulse); break;
 	}
 }
@@ -233,7 +228,20 @@ static void cmd_coin(int argc, char** argv)
 		return;
 	}
 	usart_print("coin emulate %d\n", count);
-	svCoinInsert += count * 2;
+	gpio_outCoin(count);
+}
+
+//---------------------------------------------------------------------------------------------
+static void cmd_ticket(int argc, char** argv)
+{
+	uint32_t count;
+
+	if((Str2Dec32(argv[1], &count) == 0)){
+		usart_print("ticket count error :%d\n", count);
+		return;
+	}
+	usart_print("ticket emulate %d\n", count);
+	gpio_outTicket(count);
 }
 
 //---------------------------------------------------------------------------------------------
@@ -266,7 +274,8 @@ struct cli_command cli[] = {
 	{"ota",             "ota",                              cmd_ota},
 
 	{"dbg",             "dbg",              				cmd_sys_debugcoin},
-	{"coin",            "coint [count]",    				cmd_coin},
+	{"coin",            "coin [count]",    				    cmd_coin},
+	{"ticket",          "ticket [count]",    				cmd_ticket},
 	// {"prize",           "prize [count]",         			cmd_prize},
 	{"t1",            "test1",        	    				cmd_test1},
 	{"t2",            "test2",         						cmd_test2},

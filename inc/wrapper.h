@@ -5,6 +5,8 @@
 #include "luat_rtos.h"
 #include "luat_debug.h"
 
+#define nameof(var) #var
+
 #define MALLOC luat_heap_malloc
 #define FREE luat_heap_free
 #define DELAY luat_rtos_task_sleep

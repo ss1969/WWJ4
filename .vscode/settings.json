@@ -44,7 +44,8 @@
         "uart.h": "c",
         "gpio.h": "c",
         "wgpio.h": "c",
-        "luat_fskv.h": "c"
+        "luat_fskv.h": "c",
+        "atomic": "c"
     },
     "files.autoSave": "onFocusChange"
 }

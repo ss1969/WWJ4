@@ -11,7 +11,6 @@ typedef enum _FSKV_ITEM
 {
     FSKV_EVT_COUNTER_C = 0,
     FSKV_EVT_COUNTER_D,
-    FSKV_EVT_COINER_SW1,      /* output polar */
     FSKV_EVT_COINER_SW2,    /* output pulse width */
     FSKV_EVT_COIN_IN_LOW,
     FSKV_EVT_COIN_IN_HIGH,
@@ -23,8 +22,6 @@ typedef enum _FSKV_ITEM
     FSKV_EVT_COIN_BTN1,
     FSKV_EVT_COIN_BTN2,
     FSKV_EVT_TE_PULSE,
-    FSKV_EVT_TE_SW1,        /* turn on / running polar */
-    FSKV_EVT_TE_SW2,        /* output pulse normal polar */
 
     FSKV_EVT_URL_WXPAY,
     FSKV_EVT_URL_OTA,

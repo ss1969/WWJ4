@@ -77,7 +77,6 @@ static void fskv_read_data(void)
 	ef_get_str("urlOta", svUrlOta);
 	ef_get_num8("dstatus", &svDeviceStatus);
 	ef_get_num8("dtype", &svDeviceType);
-	ef_get_num8("coinsw1", &svCoinSw1);
 	ef_get_num8("coinsw2", &svCoinSw2);
 	ef_get_num8("pulsec1", &svCoinPulseWidthInLow);
 	ef_get_num8("pulsec2", &svCoinPulseWidthInHigh);
@@ -87,8 +86,6 @@ static void fskv_read_data(void)
 	ef_get_num8("coinbtn1", &svCoinPerPlay);
 	ef_get_num8("coinbtn2", &svCoinPerPlay2);
 	ef_get_num8("tepulse", &svTEpulse);
-	ef_get_num8("tesw1", &svTEsw1);
-	ef_get_num8("tesw2", &svTEsw2);
 }
 
 /* reset counters */
@@ -106,8 +103,7 @@ static void fskv_reset_data(void)
 	strcpy(svUrlWXPay, "");
 	strcpy(svUrlOta, "");
 	svDeviceStatus = 1;
-	svDeviceType = 1;
-	svCoinSw1 = 1;
+	svDeviceType = 2;
 	svCoinSw2 = 40;
 	svCoinPulseWidthInLow = 15;
 	svCoinPulseWidthInHigh = 105;
@@ -117,13 +113,10 @@ static void fskv_reset_data(void)
 	svCoinPerPlay = 1;
 	svCoinPerPlay2 = 2;
 	svTEpulse = 80;
-	svTEsw1 = 0;
-	svTEsw2 = 0;
 	ef_set_str("urlWxPay", svUrlWXPay);
 	ef_set_str("urlOta", svUrlOta);
 	ef_set_num8("dstatus", svDeviceStatus);
 	ef_set_num8("dtype", svDeviceType);
-	ef_set_num8("coinsw1", svCoinSw1);
 	ef_set_num8("coinsw2", svCoinSw2);
 	ef_set_num8("pulsec1", svCoinPulseWidthInLow);
 	ef_set_num8("pulsec2", svCoinPulseWidthInHigh);
@@ -133,8 +126,6 @@ static void fskv_reset_data(void)
 	ef_set_num8("coinbtn1", svCoinPerPlay);
 	ef_set_num8("coinbtn2", svCoinPerPlay2);
 	ef_set_num8("tepulse", svTEpulse);
-	ef_set_num8("tesw1", svTEsw1);
-	ef_set_num8("tesw2", svTEsw2);
 }
 
 static void fskv_init(void)
@@ -155,6 +146,10 @@ static void fskv_init(void)
 
 static void fskv_main_rountine(void *param)
 {
+	#define SETNUM(k, v) v = event.param1; ef_set_num(k, v); break;
+	#define SETNU8(k, v) v = event.param1; ef_set_num8(k, v); break;
+	#define SETSTR(k, v) strncpy(v, (char *)event.param1, sizeof(v)); ef_set_str(k, v); break;
+
 	int ret;
 	luat_event_t event;
 	while(true)
@@ -165,85 +160,26 @@ static void fskv_main_rountine(void *param)
 			LUAT_DEBUG_PRINT("luat_rtos_event_recv ERROR %d", event.id);
 			continue;
 		}
-
-		LUAT_DEBUG_PRINT("luat_rtos_event_recv id:%d param1:%d", event.id, event.param1);
+		// LUAT_DEBUG_PRINT("luat_rtos_event_recv id:%d param1:%d", event.id, event.param1);
 		switch(event.id)
 		{
 			// int types
-			case FSKV_EVT_COUNTER_C:
-				svCounterC = event.param1;
-				ef_set_num("c", svCounterC);
-				break;
-			case FSKV_EVT_COUNTER_D:
-				svCounterD = event.param1;
-				ef_set_num("d", svCounterD);
-				break;
-			case FSKV_EVT_COINER_SW1:
-				svCoinSw1 = event.param1;
-				ef_set_num("coinsw1", svCoinSw1);
-				break;
-			case FSKV_EVT_COINER_SW2:
-				svCoinSw2 = event.param1;
-				ef_set_num8("coinsw2", svCoinSw2);
-				break;
-			case FSKV_EVT_COIN_IN_LOW:
-				svCoinPulseWidthInLow = event.param1;
-				ef_set_num8("pulsec1", svCoinPulseWidthInLow);
-				break;
-			case FSKV_EVT_COIN_IN_HIGH:
-				svCoinPulseWidthInHigh = event.param1;
-				ef_set_num8("pulsec2", svCoinPulseWidthInHigh);
-				break;
-			case FSKV_EVT_PRZ_IN_LOW:
-				svPrizePulseWidthInLow = event.param1;
-				ef_set_num8("pulsec3", svPrizePulseWidthInLow);
-				break;
-			case FSKV_EVT_PRZ_IN_HIGH:
-				svPrizePulseWidthInHigh = event.param1;
-				ef_set_num8("pulsec4", svPrizePulseWidthInHigh);
-				break;
-			case FSKV_EVT_DEV_STATUS:
-				svDeviceStatus = event.param1;
-				ef_set_num8("dstatus", svDeviceStatus);
-				break;
-			case FSKV_EVT_DEV_TYPE:
-				svDeviceType = event.param1;
-				ef_set_num8("dtype", svDeviceType);
-				break;
-			case FSKV_EVT_DEV_DIR:
-				svCardDirection = event.param1;
-				ef_set_num8("dir", svCardDirection);
-				break;
-			case FSKV_EVT_COIN_BTN1:
-				svCoinPerPlay = event.param1;
-				ef_set_num8("coinbtn1", svCoinPerPlay);
-				break;
-			case FSKV_EVT_COIN_BTN2:
-				svCoinPerPlay2 = event.param1;
-				ef_set_num8("coinbtn2", svCoinPerPlay2);
-				break;
-			case FSKV_EVT_TE_PULSE:
-				svTEsw1 = event.param1;
-				ef_set_num8("tepulse", svTEpulse);
-				break;
-			case FSKV_EVT_TE_SW1:
-				svTEsw1 = event.param1;
-				ef_set_num8("tesw1", svTEsw1);
-				break;
-			case FSKV_EVT_TE_SW2:
-				svTEsw2 = event.param1;
-				ef_set_num8("tesw2", svTEsw2);
-				break;
+			case FSKV_EVT_COUNTER_C: SETNUM("c", svCounterC);
+			case FSKV_EVT_COUNTER_D: SETNUM("d", svCounterD);
+			case FSKV_EVT_COINER_SW2: SETNU8("coinsw2", svCoinSw2);
+			case FSKV_EVT_COIN_IN_LOW: SETNU8("pulsec1", svCoinPulseWidthInLow);
+			case FSKV_EVT_COIN_IN_HIGH: SETNU8("pulsec2", svCoinPulseWidthInHigh);
+			case FSKV_EVT_PRZ_IN_LOW: SETNU8("pulsec3", svPrizePulseWidthInLow);
+			case FSKV_EVT_PRZ_IN_HIGH: SETNU8("pulsec4", svPrizePulseWidthInHigh);
+			case FSKV_EVT_DEV_STATUS: SETNU8("dstatus", svDeviceStatus);
+			case FSKV_EVT_DEV_TYPE: SETNU8("dtype", svDeviceType);
+			case FSKV_EVT_DEV_DIR: SETNU8("dir", svCardDirection);
+			case FSKV_EVT_COIN_BTN1: SETNU8("coinbtn1", svCoinPerPlay);
+			case FSKV_EVT_COIN_BTN2: SETNU8("coinbtn2", svCoinPerPlay2);
+			case FSKV_EVT_TE_PULSE: SETNU8("tepulse", svTEpulse);
 			// string types
-			case FSKV_EVT_URL_WXPAY:
-				strncpy(svUrlWXPay, (char *)event.param1, sizeof(svUrlWXPay));
-				ef_set_str("urlWxPay", svUrlWXPay);
-				break;
-			case FSKV_EVT_URL_OTA:
-				strncpy(svUrlOta, (char *)event.param1, sizeof(svUrlOta));
-				ef_set_str("urlOta", svUrlOta);
-				break;
-
+			case FSKV_EVT_URL_WXPAY: SETSTR("urlWxPay", svUrlWXPay);
+			case FSKV_EVT_URL_OTA: SETSTR("urlOta", svUrlOta);
 			default:
 				break;
 		}

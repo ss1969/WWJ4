@@ -59,7 +59,7 @@ void task_bootup(void)
 		如果为了方便调试，可以设置为 LUAT_DEBUG_FAULT_HANG ，出现异常后死机不重启
 		但量产出货一定要设置为出现异常重启！！！！！！！！！
 	*/
-    luat_debug_set_fault_mode(LUAT_DEBUG_FAULT_HANG);
+    luat_debug_set_fault_mode(LUAT_DEBUG_FAULT_RESET);
 
     task_uart();
     task_fskv();

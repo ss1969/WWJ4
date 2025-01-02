@@ -1,0 +1,76 @@
+#4G卡头mqtt协议说明
+
+#History
+v1 20150101
+
+# 备注
+mqtt qos 除非特别说明，使用 level 1，最少送达1次
+配置是json，如果没写的配置卡头使用默认值；
+标必备的条目不能漏掉
+
+# 待确定问题？
+新卡头还是通过http获取真正服务器的IP以及mqtt端口？
+或者卡头可以记录上一次的mqtt配置，如果无法链接，再进行http查询。
+绑定流程需要重新定义，因为mqtt协议的特性，流程可以简化
+
+
+#1 卡头配置（服务器发布）
+## 当配置改变后，如果是可以直接生效的配置，则无需重启，否则自动重启。
+当更新fw版本造成协议有新增字段的时候，服务器可以直接使用新协议。
+客户端首先会忽略掉新增的字段，然后发现fw版本需更新，自动更新重启后，则会自动应用新协议。
+重启后，客户端汇报给服务器的fw版本更新了，服务器即可知道新协议已经生效。
+
+/device/{deviceID}/config
+{
+	"fimwareVersion" : "30",					// 卡头发现版本比自己高，则主动升级；同时fw版本和协议版本绑定
+	"fimwareUrl" : "http://www.123.com/fw.bin"	// 固件地址，使用HTTP Basic Auth
+	"resourceUrl" : "http://.."					// 资源包地址，使用HTTP Basic Auth
+	"systemMode" : "1",    						// 必备，1：普通卡头，2：彩票模拟
+	"payUrl" : "http://",						// 扫码=投币 url
+	"saveTicketUrl" : "http://xxxxx",			// 模式2，或者不用url，如果是小程序扫码，是否可以只放一个标志
+	"coinPulseWidth" ： "40",					// 投币器脉冲宽度 20到100，默认40
+	"ticketPulseWidth" : "80", 					// 模拟彩票机脉冲宽度，仅模式2
+	"coinPulseLow" : "15",     				    // 投币识别脉冲最低值
+	"coinPulseHigh" : "105",    				// 投币识别脉冲最高值
+	"ticketPulseLow" : "15",    				// 出奖脉冲最低值，仅模式1，因为模式2只看edge
+	"ticketPulseHigh" : "105",  				// 出奖脉冲最低值，仅模式1
+	"coinPerPlay" : "1" ,						// 按一次投币投几个，备用
+	"direction" : "2",           		        // 1\2\3\4 左上右下，备用
+}
+
+#2 卡头命令，服务器发布
+因为使用了mqtt的qos=1，服务器自行确认命令已被接受即可。
+
+/device/{deviceID}/command
+{
+	"timeStamp" : ""					// 服务器写入，客户端用于区分命令避免执行2次。
+	"commandId" : "1"					// 1 投币, 2 充值当前模拟彩票数, 3 重启
+	"commandParam" : "",				// cmd == 1 => count
+										// 如其他命令有其他参数，在此继续增加。
+}
+
+
+#3 数据上传（客户端发布，服务器使用通配符订阅 /device/+/upload/state 等 ）
+/device/{deviceID}/state
+{
+	"timeStamp" : "0xABCDEF00ABCDEF00"	// 64位tick，hex格式，服务器用于数据去重
+	"hardwareVersion" : "1",
+	"firmwareVersion" : "1",
+	"directTicketOut" : "0",			// 当前是直接出票还是模拟出票模式
+	"signal": "",						// 4G 信号强度
+	"binding" : "",						// 绑定状态，此处待商量
+	"pinCoinerInit" : "0",				// 投币器输出信号读取值
+	"pinMbOnoffInit": "0",				// 主板彩票开关信号读取值
+	"pinExtCountInit" : "0",			// 彩票机计数信号读取值
+	"errorCode" : "0",					// 0 正常，1 hack detected，2 .。。
+}
+
+#4 数据上传2
+/device/{deviceID}/data
+{
+	"timeStamp" : "0xABCDEF00ABCDEF00"	// 64位tick，hex格式，服务器用于数据去重
+	"coin" : "12345",					// 投币计数
+	"prize" : "12345",					// 出奖计数，仅模式1
+	"ticketDirectOut" : "12345",		// 直接出票数，仅模式2
+	"ticketEmulated" "12345",			// 当前模拟出票数，仅模式2
+}
