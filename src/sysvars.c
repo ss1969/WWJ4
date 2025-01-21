@@ -3,19 +3,29 @@
 
 
 /* vars 计数器 */
-volatile uint32_t svCounterC = 0;
-volatile uint32_t svCounterD = 0;
+volatile uint32_t svCounterC = 0;   /* 投币计数 */
+volatile uint32_t svCounterD = 0;   /* 出奖计数 */
+volatile uint32_t svCounterW = 0;   /* 想要出票计数 */
+volatile uint32_t svCounterR = 0;   /* 实际出票计数 */
+volatile uint32_t svCounterE = 0;   /* 模拟彩票计数 */
 
 /* vars 系统状态控制 */
 uint8_t svDbgOn = 0;    		 /* 显示Debug信息 */
 uint8_t svDbgCoin = 1;	    	 /* 显示彩票和投币debug信息 */
 uint8_t svBooting = 1;		     /* 系统还在启动状态 */
+uint8_t svTicketDirectOut = 0;   /* 当前是哪种出票模式 */
+uint8_t svSignal = 0;            /* 信号强度 */
 uint32_t svErrorFlag;		     /* 错误标志 */
+uint32_t svErrorCount = 0;       /* 错误计数 */
 char svServerConnected = 0;      /* 是否连接了服务器 */
 short svPing;				     /* 心跳回应毫秒值 */
+char svLastCommandExecuted[32] = {0};  /* 最后一次执行的命令的TS */
 
 /* vars 系统设置信息 */
-char svSystemID[10];             /* Unique ID */
+char svSystemID[32] = {0};       /* CHIP ID */
+char svIMEI[20] = {0};           /* IMEI */
+char svIMSI[20] = {0};           /* IMEI */
+char svICCID[24] = {0};          /* ICCID */
 uint8_t svDeviceType;            /* 1 标准，2 代替彩票机 */
 uint8_t svCardDirection;	     /* 刷卡头开口方向, 1开口向上（默认选项），然后是向下，向左，向右 */
 uint8_t svDeviceStatus;			 /* 设备状态 0 正常 1 未初始化 2 未绑定 */

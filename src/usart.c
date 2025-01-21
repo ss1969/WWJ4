@@ -18,13 +18,13 @@ typedef struct _UART_MSG
 
 static luat_rtos_task_handle task_uart_handle;
 
-#define UART_COUNT               (sizeof(uart_configs) / sizeof(uart_config_t))
+#define UART_COUNT               (sizeof(uart_configs) / sizeof(UART_CONFIG))
 
 static char rx_buffer[UART_COUNT][UART_RINGBUF_SIZE];  // 每个 UART 1KB 接收缓冲区
 static RINGBUFFER_T rbuf[UART_COUNT];
 static int uart_dbg_rbuf_id;
 
-static int get_uart_config_index(int id) {
+static int uart_get_config_index(int id) {
     for (int i = 0; i < UART_COUNT; i++) {
         if (uart_configs[i].id == id) {
             return i; // 找到对应的索引，返回
@@ -37,14 +37,14 @@ static void luat_uart_recv_cb(int uart_id, uint32_t data_len){
     uint8_t rx_buffer[UART_RXBUF_SIZE];
     int len = luat_uart_read(uart_id, rx_buffer, sizeof(rx_buffer));
     if (len > 0) {
-        int id = get_uart_config_index(uart_id);
+        int id = uart_get_config_index(uart_id);
         if (id == -1)
             return;
         RingBufWrite(&rbuf[id], rx_buffer, len);
     }
 }
 
-static void uart_init() {
+static void uart_dev_init() {
 	LUAT_DEBUG_PRINT("uart_init start");
 
     for (int i = 0; i < UART_COUNT; i++) {
@@ -60,28 +60,28 @@ static void uart_init() {
         LUAT_DEBUG_PRINT("[UART] ctrl result %d", luat_uart_ctrl(uart_configs[i].id, LUAT_UART_SET_RECV_CALLBACK, luat_uart_recv_cb));
     }
 
-    uart_dbg_rbuf_id = get_uart_config_index(UART_DEBUG);
+    uart_dbg_rbuf_id = uart_get_config_index(UART_DEBUG);
     if (uart_dbg_rbuf_id == -1)
 	    LUAT_DEBUG_PRINT("uart UART_DEBUG set ERROR!!");
 
 	LUAT_DEBUG_PRINT("uart_init end");
 }
 
-int usart_tx(int uart_id, const char* buffer, size_t buffersize)
+int uart_tx(int uart_id, const char* buffer, size_t buffersize)
 {
-    int id = get_uart_config_index(uart_id);
+    int id = uart_get_config_index(uart_id);
     if (id == -1)
         return -1;
     int result = luat_uart_write(uart_id, buffer, buffersize);
     return result;
 }
 
-int usart_getchar(char *ch)
+int uart_getchar(char *ch)
 {
 	return RingBufRead1Ch(&rbuf[uart_dbg_rbuf_id], ch);
 }
 
-int usart_print(const char* format, ...)
+int uart_print(const char* format, ...)
 {
     char buffer[256];
     va_list args;
@@ -97,7 +97,7 @@ int usart_print(const char* format, ...)
     return length;
 }
 
-int usart_print_async(const char* format, ...)
+int uart_print_async(const char* format, ...)
 {
     char buffer[256];
     va_list args;
@@ -139,9 +139,9 @@ static void uart_main_routine(void *param)
 	}
 }
 
-void task_uart(void)
+void uart_taskinit(void)
 {
-    uart_init();
+    uart_dev_init();
     luat_rtos_task_create(&task_uart_handle, 4*1024, 80, "task_uart", uart_main_routine, NULL, 0);
 }
 

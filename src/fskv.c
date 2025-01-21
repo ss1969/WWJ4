@@ -15,7 +15,7 @@
 static luat_rtos_task_handle task_fskv_handle;
 static luat_rtos_timer_t timer0;
 
-static uint32_t _c, _d;	// 2 counter store
+static uint32_t _c, _d, _e, _r, _w;	// 4 counter store
 
 // return 1 success
 static int ef_get_num(const char* key, uint32_t *data)
@@ -34,6 +34,7 @@ static int ef_get_num8(const char* key, uint8_t *data)
 	uint32_t v;
 	ret = Str2Hex32(value, &v);
 	*data = (uint8_t)(v & 0xFF);
+	// LUAT_DEBUG_PRINT("RRRRRRRRRRRRRRRRRRR key %s value %s, data %d ret %d", key, value, *data, ret);
 	return ret;
 }
 
@@ -49,6 +50,7 @@ static int ef_set_num8(const char* key, uint8_t data)
 {
 	char value[8] = {0};
 	int len = sprintf(value, "%x", data);
+	// LUAT_DEBUG_PRINT("luat_fskv_set %s %s %d", key, value, len);
 	return luat_fskv_set(key, value, len);
 }
 
@@ -71,6 +73,9 @@ static void fskv_read_data(void)
 	/* read counters */
 	ef_get_num("c", &svCounterC);
 	ef_get_num("d", &svCounterD);
+	ef_get_num("e", &svCounterE);
+	ef_get_num("r", &svCounterR);
+	ef_get_num("w", &svCounterW);
 
 	/* read settings */
 	ef_get_str("urlWxPay", svUrlWXPay);
@@ -95,9 +100,12 @@ static void fskv_reset_data(void)
 	luat_fskv_clear();
 
 	/* set counters */
-	svCounterC = svCounterD = 0;
+	svCounterC = svCounterD = svCounterE = svCounterR = svCounterW = 0;
 	ef_set_num("c", svCounterC);
 	ef_set_num("d", svCounterD);
+	ef_set_num("e", svCounterE);
+	ef_set_num("r", svCounterR);
+	ef_set_num("w", svCounterW);
 
 	/* set settings */
 	strcpy(svUrlWXPay, "");
@@ -128,7 +136,7 @@ static void fskv_reset_data(void)
 	ef_set_num8("tepulse", svTEpulse);
 }
 
-static void fskv_init(void)
+static void fskv_dev_init(void)
 {
 	LUAT_DEBUG_PRINT("fskv_init start");
 	luat_fskv_init();
@@ -160,12 +168,15 @@ static void fskv_main_rountine(void *param)
 			LUAT_DEBUG_PRINT("luat_rtos_event_recv ERROR %d", event.id);
 			continue;
 		}
-		// LUAT_DEBUG_PRINT("luat_rtos_event_recv id:%d param1:%d", event.id, event.param1);
+		LUAT_DEBUG_PRINT("luat_rtos_event_recv id:%d param1:%d", event.id, event.param1);
 		switch(event.id)
 		{
 			// int types
 			case FSKV_EVT_COUNTER_C: SETNUM("c", svCounterC);
 			case FSKV_EVT_COUNTER_D: SETNUM("d", svCounterD);
+			case FSKV_EVT_COUNTER_E: SETNUM("e", svCounterE);
+			case FSKV_EVT_COUNTER_R: SETNUM("r", svCounterR);
+			case FSKV_EVT_COUNTER_W: SETNUM("r", svCounterW);
 			case FSKV_EVT_COINER_SW2: SETNU8("coinsw2", svCoinSw2);
 			case FSKV_EVT_COIN_IN_LOW: SETNU8("pulsec1", svCoinPulseWidthInLow);
 			case FSKV_EVT_COIN_IN_HIGH: SETNU8("pulsec2", svCoinPulseWidthInHigh);
@@ -196,6 +207,18 @@ static void timer_save_important_kv(void *param)
 		_d = svCounterD;
 		fskv_save_async(FSKV_EVT_COUNTER_D, svCounterD);
 	}
+	if( _e != svCounterE ){
+		_e = svCounterE;
+		fskv_save_async(FSKV_EVT_COUNTER_E, svCounterE);
+	}
+	if( _r != svCounterR ){
+		_r = svCounterR;
+		fskv_save_async(FSKV_EVT_COUNTER_R, svCounterR);
+	}
+	if( _w != svCounterW ){
+		_w = svCounterW;
+		fskv_save_async(FSKV_EVT_COUNTER_W, svCounterW);
+	}
 }
 
 void fskv_save_async(FSKV_ITEM item, uint32_t p1)
@@ -203,14 +226,17 @@ void fskv_save_async(FSKV_ITEM item, uint32_t p1)
 	luat_rtos_event_send(task_fskv_handle, item, p1, 0, 0, 1000);
 }
 
-void task_fskv(void)
+void fskv_taskinit(void)
 {
-	int ret;
-	fskv_init();
+	fskv_dev_init();
+
 	_c = svCounterC;
 	_d = svCounterD;
+	_e = svCounterE;
+	_r = svCounterR;
+	_w = svCounterW;
 
-	luat_rtos_task_create(&task_fskv_handle, 4*1024, 60, "task_fskv", fskv_main_rountine, NULL, 0);
+	luat_rtos_task_create(&task_fskv_handle, 4*1024, 60, "fskv_init", fskv_main_rountine, NULL, 0);
     luat_rtos_timer_create(&timer0);
 	luat_rtos_timer_start(timer0, FSKV_SAVE_IMPORTANT_INTERVAL, 1, timer_save_important_kv, NULL);
 }

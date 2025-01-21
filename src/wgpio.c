@@ -24,9 +24,9 @@ static luat_rtos_timer_t timer0;
 static luat_rtos_timer_t timer1;
 
 /* vars */
-static atomic_uint_fast32_t svCoinInsert; 			/* 模拟投币给主板个数, 给定时器使用。必须是2的倍数。每2表示投一次币 */
-static atomic_uint_fast32_t svTEticketCount;        /* 模拟了多少票数 */
-static atomic_uint_fast32_t svTKticketOut;          /* 要实际出多少票 */
+static atomic_uint_fast32_t coinInsert; 			/* 模拟投币给主板个数, 给定时器使用。必须是2的倍数。每2表示投一次币 */
+static atomic_uint_fast32_t ticketEmu;              /* 本次模拟了多少票数 */
+static atomic_uint_fast32_t ticketWantOut;          /* 需要出多少票 */
 static uint8_t coinSw1;               				/* 投币器SW1，直接从投币器读取而来 */
 static uint8_t ticketerSw1;                 		/* 彩票机 出票信号 读取值 */
 static uint8_t ticketerSw2;                 		/* 彩票机 计数信号 读取值*/
@@ -35,20 +35,20 @@ static uint8_t ticketerSw2;                 		/* 彩票机 计数信号 读取�
 
 static void timer0_callback_coiner(void *param)
 {
-    if(svCoinInsert > 0){
-		LUAT_DEBUG_PRINT("timer0_callback_coiner svCoinInsert=%d", svCoinInsert);
-        gpio_toggle(PIN_COIN_OUT);
+    if(coinInsert > 0){
+		LUAT_DEBUG_PRINT("timer0_callback_coiner coinInsert=%d", coinInsert);
+        gpio_toggle(PIN_COIN_OUT_LA);
         gpio_toggle(PIN_PRZ_MB_COUNT);
-        svCoinInsert --;
+        coinInsert --;
     }
 }
 
 static void timer0_callback_te(void *param)
 {
-    if(svCoinInsert > 0){
-		LUAT_DEBUG_PRINT("timer0_callback_te svCoinInsert=%d", svCoinInsert);
-        gpio_toggle(PIN_COIN_OUT);
-        svCoinInsert --;
+    if(coinInsert > 0){
+		LUAT_DEBUG_PRINT("timer0_callback_te coinInsert=%d", coinInsert);
+        gpio_toggle(PIN_COIN_OUT_LA);
+        coinInsert --;
     }
 }
 
@@ -58,7 +58,8 @@ static void timer1_callback_te(void *param)
 	if(state == 0){
 		state = 1;
 		luat_gpio_set(PIN_PRZ_MB_COUNT, !ticketerSw2);
-		svTEticketCount ++;	// 写入单个edge即认为计数增加，因为主板会在单个edge后关掉onoff
+		ticketEmu ++;	// 写入单个edge即认为计数增加，因为主板会在单个edge后关掉onoff
+		svCounterE ++;
 	}
 	else{
 		state = 0;
@@ -75,14 +76,14 @@ static void IrqHandlerCoin(void *data, void* args)
 	GPIO_PinState ps = luat_gpio_get(PIN_COIN_IN);
 
 	/* AIR780EP, prevent boot false irq interrupt */
-	if(soc_get_poweron_time_tick() < MS2TICK(1000)) return;
+	if(SYSTICK() < MS2TICK(1000)) return;
 
-	if(svDbgCoin) LUAT_DEBUG_PRINT("COIN PIN %s @ %dms", ps ? "UP" : "DOWN", TICK2MS(soc_get_poweron_time_tick()));
+	if(svDbgCoin) LUAT_DEBUG_PRINT("COIN PIN %s @ %dms", ps ? "UP" : "DOWN", TICK2MS(SYSTICK()));
 
 	/* we store the timestamp when FALLING. */
 	if(ps != coinSw1){
 		/* anti hack routine : check if last time is too small < 60ms */
-		uint64_t lastGap = soc_get_poweron_time_tick() - tick;
+		uint64_t lastGap = SYSTICK() - tick;
 		if(lastGap < MS2TICK(CONFIG_HACK_GAP_MIN)){
 			svHack++;
 			reportHackCnt++;
@@ -91,14 +92,14 @@ static void IrqHandlerCoin(void *data, void* args)
 				reportHackCnt = 0;
 			}
 		}
-		tick = soc_get_poweron_time_tick();
+		tick = SYSTICK();
 	}
 	/* UPRISING after an falling. it's exiting the interrupt.
 	We set detect limit to between 20~120ms  */
 	else{
 		if((pps != coinSw1) &&
-		   (soc_get_poweron_time_tick() > MS2TICK(svCoinPulseWidthInLow) + tick) &&
-		   (soc_get_poweron_time_tick() < MS2TICK(svCoinPulseWidthInHigh) + tick)){
+		   (SYSTICK() > MS2TICK(svCoinPulseWidthInLow) + tick) &&
+		   (SYSTICK() < MS2TICK(svCoinPulseWidthInHigh) + tick)){
 			/* counter++, notify helper task */
 			svCounterC++;
 
@@ -107,10 +108,10 @@ static void IrqHandlerCoin(void *data, void* args)
 			/* directly put 1 coin out, because gpio_outCoin() is very simple. */
 			gpio_outCoin(1);
 
-			if(svDbgCoin) LUAT_DEBUG_PRINT("COIN++ %d, %dms", svCounterC, TICK2MS(soc_get_poweron_time_tick() - tick));
+			if(svDbgCoin) LUAT_DEBUG_PRINT("COIN++ %d, %dms", svCounterC, TICK2MS(SYSTICK() - tick));
 		}
 		else{
-			if(svDbgCoin) LUAT_DEBUG_PRINT("COIN DROP %dms", TICK2MS(soc_get_poweron_time_tick() - tick));
+			if(svDbgCoin) LUAT_DEBUG_PRINT("COIN DROP %dms", TICK2MS(SYSTICK() - tick));
 		}
 	}
 
@@ -126,13 +127,13 @@ static void IrqHandlerPrizeExtCntMode1(void *data, void* args)
 	GPIO_PinState ps = luat_gpio_get(PIN_PRZ_EXT_COUNT);
 
 	/* AIR780EP, prevent boot false irq interrupt */
-	if(soc_get_poweron_time_tick() < MS2TICK(1000)) return;
+	if(SYSTICK() < MS2TICK(1000)) return;
 
-	if(svDbgCoin) LUAT_DEBUG_PRINT("PIN_PRZ_EXT_COUNT %s @ %d", ps ? "UP" : "DOWN", TICK2MS(soc_get_poweron_time_tick()));
+	if(svDbgCoin) LUAT_DEBUG_PRINT("PIN_PRZ_EXT_COUNT %s @ %d", ps ? "UP" : "DOWN", TICK2MS(SYSTICK()));
 
 	/* we store the timestamp when FALLING. */
 	if(ps != ticketerSw2){
-		tick = soc_get_poweron_time_tick();
+		tick = SYSTICK();
 	}
 	/* UPRISING after an falling. it's exiting the interrupt.
 	high time/ low time:
@@ -141,17 +142,17 @@ static void IrqHandlerPrizeExtCntMode1(void *data, void* args)
 	We set detect limit to between 20~120ms  */
 	else{
 		if((pps != ticketerSw2) &&
-		   (soc_get_poweron_time_tick() > MS2TICK(svPrizePulseWidthInLow) + tick) &&
-		   (soc_get_poweron_time_tick() < MS2TICK(svPrizePulseWidthInHigh) + tick)){
+		   (SYSTICK() > MS2TICK(svPrizePulseWidthInLow) + tick) &&
+		   (SYSTICK() < MS2TICK(svPrizePulseWidthInHigh) + tick)){
 			/* update coin per prize only if it's doll machine. */
 			svCounterD++;
 
 			//k if(svDeviceType == 1) CoinerNotifyCoinPerPrizeUpdate();
 
-			if(svDbgCoin) LUAT_DEBUG_PRINT("PRIZE++ %d, %dms", svCounterD, TICK2MS(soc_get_poweron_time_tick() - tick));
+			if(svDbgCoin) LUAT_DEBUG_PRINT("PRIZE++ %d, %dms", svCounterD, TICK2MS(SYSTICK() - tick));
 		}
 		else{
-			if(svDbgCoin) LUAT_DEBUG_PRINT("PRIZE DROP %dms", TICK2MS(soc_get_poweron_time_tick() - tick));
+			if(svDbgCoin) LUAT_DEBUG_PRINT("PRIZE DROP %dms", TICK2MS(SYSTICK() - tick));
 		}
 	}
 
@@ -163,10 +164,11 @@ static void IrqHandlerPrizeExtCntMode1(void *data, void* args)
 static void IrqHandlerPrizeExtCntMode2(void *data, void* args)
 {
 	GPIO_PinState ps = luat_gpio_get(PIN_PRZ_EXT_COUNT);
-	if(svDbgCoin) LUAT_DEBUG_PRINT("PIN_PRZ_EXT_COUNT STATE %s @ %dms", ps ? "HIGH" : "LOW", TICK2MS(soc_get_poweron_time_tick()));
+	if(svDbgCoin) LUAT_DEBUG_PRINT("PIN_PRZ_EXT_COUNT STATE %s @ %dms", ps ? "HIGH" : "LOW", TICK2MS(SYSTICK()));
 	if(ps != ticketerSw2){
-		svTKticketOut --;
-		if(svTKticketOut == 0){
+		ticketWantOut --;
+		svCounterR ++;
+		if(ticketWantOut == 0){
 			// Turn OFF real ticketer
 			luat_gpio_set(PIN_PRZ_EXT_ONOFF, !ticketerSw1);
 		}
@@ -177,20 +179,25 @@ static void IrqHandlerPrizeExtCntMode2(void *data, void* args)
 static void IrqHandlerPrizeMBOnoffMode2(void *data, void* args)
 {
 	GPIO_PinState ps = luat_gpio_get(PIN_PRZ_MB_ONOFF);
-	if(svDbgCoin) LUAT_DEBUG_PRINT("PIN_PRZ_MB_ONOFF STATE %s @ %dms", ps ? "HIGH" : "LOW", TICK2MS(soc_get_poweron_time_tick()));
+	if(svDbgCoin) LUAT_DEBUG_PRINT("PIN_PRZ_MB_ONOFF STATE %s @ %dms", ps ? "HIGH" : "LOW", TICK2MS(SYSTICK()));
 
 	if(ps != ticketerSw1){	// start emulate
-		svTEticketCount = 0;
+		ticketEmu = 0;
 		if(timer1) luat_rtos_timer_start(timer1, svTEpulse / 2, 1, timer1_callback_te, NULL);
 	}
 	else{	// stop emulate. 因为主板一般在收到单个edge就会关掉MB_ONOFF，所以手工把PIN_PRZ_MB_COUNT写inactive
 		if(timer1) luat_rtos_timer_stop(timer1);
 		luat_gpio_set(PIN_PRZ_MB_COUNT, ticketerSw2);
-		LUAT_DEBUG_PRINT("TICKET EMULATED: %d tickets, timer %d", svTEticketCount);
+		LUAT_DEBUG_PRINT("TICKET EMULATED: %d tickets, timer %d", ticketEmu);
 	}
 }
 
-static void gpio_init(void)
+static void IrqHandlerBtn0(void *data, void* args)
+{
+	LUAT_DEBUG_PRINT("BTN0 pressed");
+}
+
+static void gpio_dev_init(void)
 {
 	LUAT_DEBUG_ASSERT(svDeviceType == 1 || svDeviceType == 2, "sv device mode error %d", svDeviceType);
 	LUAT_DEBUG_PRINT("gpio_init start, sys mode %d", svDeviceType);
@@ -203,18 +210,21 @@ static void gpio_init(void)
     gpio_cfg.mode=Luat_GPIO_IRQ;
     gpio_cfg.irq_type=LUAT_GPIO_BOTH_IRQ;
 
+	// 按钮
+    gpio_cfg.pin=PIN_BTN0;
+	gpio_cfg.irq_cb=(void*)IrqHandlerBtn0;
+    luat_gpio_open(&gpio_cfg);
+
 	// 投币器
     gpio_cfg.pin=PIN_COIN_IN;
 	gpio_cfg.irq_cb=(void*)IrqHandlerCoin;
     luat_gpio_open(&gpio_cfg);
 
 	// PIN_PRZ_EXT_COUNT
-	gpio_cfg.pull = Luat_GPIO_PULLUP;	//k 以后应该去掉
     gpio_cfg.pin=PIN_PRZ_EXT_COUNT;
 	if(svDeviceType == 1) gpio_cfg.irq_cb=(void*)IrqHandlerPrizeExtCntMode1;
 	else if(svDeviceType == 2) gpio_cfg.irq_cb=(void*)IrqHandlerPrizeExtCntMode2;
     luat_gpio_open(&gpio_cfg);
-    gpio_cfg.pull=Luat_GPIO_DEFAULT;	//k 以后应该去掉
 
 	// PIN_PRZ_MB_ONOFF （仅mode2）
 	if(svDeviceType == 2) {
@@ -226,20 +236,23 @@ static void gpio_init(void)
 	// output pins
     gpio_cfg.mode=LUAT_GPIO_OUTPUT;
     gpio_cfg.irq_type=LUAT_GPIO_NO_IRQ;
-    gpio_cfg.pin=PIN_LED_D1;
+    gpio_cfg.pin=PIN_COIN_OUT_LA;
     luat_gpio_open(&gpio_cfg);
-    gpio_cfg.pin=PIN_LED_D2;
+    gpio_cfg.pin=PIN_COIN_OUT_HA;
     luat_gpio_open(&gpio_cfg);
-    gpio_cfg.pin=PIN_COIN_OUT;
+    gpio_cfg.pin=PIN_COIN_OUT_WATCH;
     luat_gpio_open(&gpio_cfg);
     gpio_cfg.pin=PIN_PRZ_MB_COUNT;
     luat_gpio_open(&gpio_cfg);
     gpio_cfg.pin=PIN_PRZ_EXT_ONOFF;
     luat_gpio_open(&gpio_cfg);
+    gpio_cfg.pin=PIN_LED_D0;
+	gpio_cfg.alt_fun = PIN_GPIO_16_ALT;
+    luat_gpio_open(&gpio_cfg);
 
 	// set defaults
 	coinSw1 = luat_gpio_get(PIN_COIN_IN);				// 读取投币器输出值
-	luat_gpio_set(PIN_COIN_OUT, coinSw1);
+	luat_gpio_set(PIN_COIN_OUT_LA, coinSw1);
 
 	// ticketerSw1 = luat_gpio_get(PIN_PRZ_MB_ONOFF);		// 读取主板彩票机开启信号值
 	ticketerSw1 = 1;	//k
@@ -251,9 +264,9 @@ static void gpio_init(void)
 	LUAT_DEBUG_PRINT("gpio_init end");
 }
 
-void task_gpio(void)
+void gpio_taskinit(void)
 {
-    gpio_init();
+    gpio_dev_init();
     luat_rtos_timer_create(&timer0);
 	if(svDeviceType == 1){
     	luat_rtos_timer_start(timer0, svCoinSw2, 1, timer0_callback_coiner, NULL);
@@ -277,13 +290,12 @@ void gpio_deinit(void)
 	luat_rtos_timer_delete(timer1);
 
 	luat_gpio_close(PIN_COIN_IN);
-	luat_gpio_close(PIN_COIN_OUT);
+	luat_gpio_close(PIN_COIN_OUT_LA);
 	luat_gpio_close(PIN_PRZ_MB_ONOFF);
 	luat_gpio_close(PIN_PRZ_MB_COUNT);
 	luat_gpio_close(PIN_PRZ_EXT_COUNT);
 	luat_gpio_close(PIN_PRZ_EXT_ONOFF);
-	luat_gpio_close(PIN_LED_D1);
-	luat_gpio_close(PIN_LED_D2);
+	luat_gpio_close(PIN_LED_D0);
 }
 
 int gpio_toggle(int pin)
@@ -294,12 +306,9 @@ int gpio_toggle(int pin)
     return r;
 }
 
-void gpio_led(int id, bool on)
+void gpio_led(bool on)
 {
-    if(id < 0 || id > 2)
-        return;
-
-    luat_gpio_set(id == 1 ? PIN_LED_D1 : PIN_LED_D2, on ? 1 : 0);
+    luat_gpio_set(PIN_LED_D0, on ? 1 : 0);
 }
 
 void gpio_set_coin_pulse_width(int widthMs)
@@ -312,16 +321,12 @@ void gpio_set_coin_pulse_width(int widthMs)
 
 void gpio_outCoin(int count)
 {
-	svCoinInsert += count * 2;
+	coinInsert += count * 2;
 }
 
 void gpio_outTicket(int count)
 {
-	svTKticketOut += count;
+	ticketWantOut += count;
+	svCounterW += count;
 	luat_gpio_set(PIN_PRZ_EXT_ONOFF, !ticketerSw1);	// Turn On real ticketer
-}
-
-uint32_t gpio_emuTicket(void)
-{
-	return svTEticketCount;
 }

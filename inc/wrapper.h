@@ -11,6 +11,7 @@
 #define FREE luat_heap_free
 #define DELAY luat_rtos_task_sleep
 #define GPIO_PinState int
+#define SYSTICK soc_get_poweron_time_tick
 
 typedef unsigned long            uint32_t;
 typedef unsigned short           uint16_t;

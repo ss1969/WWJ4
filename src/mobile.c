@@ -2,6 +2,12 @@
 #include "luat_rtos.h"
 #include "luat_mobile.h"
 #include "luat_debug.h"
+#include "luat_sms.h"
+#include "luat_mem.h"
+
+#include "str2x.h"
+#include "sysvars.h"
+#include "mqttdata.h"
 
 #define MOBILE_CELL_REFRESH_TIME    120 * 1000
 
@@ -9,9 +15,21 @@ static luat_rtos_task_handle task_mobile_handle;
 static luat_mobile_cell_info_t s_cell_info;
 extern int luat_mobile_sms_event_register_handler(luat_mobile_sms_event_callback_t callback_fun);
 
-static void sms_event_cb(uint32_t event, void *param)
+static void sms_recv_cb(uint32_t event, void *param)
 {
-	LUAT_DEBUG_PRINT("短信 event%d,%x",event, param);
+	LUAT_DEBUG_PRINT("sms_recv_cb:[%d]", event);
+	LUAT_SMS_RECV_MSG_T *data = (LUAT_SMS_RECV_MSG_T *)param;
+	char time[32] = {0};
+	sprintf(time, "%02d/%02d/%02d,%02d:%02d:%02d %c%02d", data->time.year, data->time.month, data->time.day, data->time.hour, data->time.minute, data->time.second,data->time.tz_sign, data->time.tz);
+	char *uni = convertToUnicode(data->sms_buffer);
+	LUAT_DEBUG_PRINT("PDU: [%s]", uni);
+	mqtt_pub_sms(time, data->phone_address, uni);
+	FREE(uni);
+}
+
+static void sms_send_cb(uint32_t event, void *param)
+{
+	LUAT_DEBUG_PRINT("sms_send_cb:[%d]", event);
 }
 
 static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t status)
@@ -19,8 +37,6 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
 	luat_mobile_signal_strength_info_t signal_info;
 	uint16_t mcc;
 	uint8_t csq, i, mnc;
-	char imsi[20];
-	char iccid[24] = {0};
 	char apn[32] = {0};
 	ip_addr_t ipv4;
 	ip_addr_t ipv6;
@@ -39,11 +55,12 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
 		{
             case LUAT_MOBILE_SIM_READY:
                 LUAT_DEBUG_PRINT("SIM卡正常工作");
-                luat_mobile_get_iccid(index, iccid, sizeof(iccid));
-                LUAT_DEBUG_PRINT("ICCID %s", iccid);
-                luat_mobile_get_imsi(index, imsi, sizeof(imsi));
-                LUAT_DEBUG_PRINT("IMSI %s", imsi);
-                luat_mobile_get_plmn_from_imsi(imsi, &mcc, &mnc);
+				luat_mobile_get_imsi(0, svIMSI, sizeof(svIMSI));
+				LUAT_DEBUG_PRINT("IMSI: %s", svIMSI);
+				luat_mobile_get_iccid(0, svICCID, sizeof(svICCID));
+				LUAT_DEBUG_PRINT("ICCID: %s", svICCID);
+                luat_mobile_get_plmn_from_imsi(svIMSI, &mcc, &mnc);
+				LUAT_DEBUG_PRINT("MCC: %d, MNC %d", mcc, mnc);
                 result = luat_mobile_get_isp_from_plmn(mcc, mnc);
                 switch(result)
                 {
@@ -63,7 +80,7 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
                         LUAT_DEBUG_PRINT("未知运营商");
                         break;
                     default:
-                        LUAT_DEBUG_PRINT("非中国卡");
+                        LUAT_DEBUG_PRINT("非中国卡 %d", result);
                         break;
                 }
                 break;
@@ -82,6 +99,7 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
 		switch(status)
 		{
 		case LUAT_MOBILE_CELL_INFO_UPDATE:
+			#if 0	//k 没用不显示了
 			LUAT_DEBUG_PRINT("周期性搜索小区信息完成一次");
 			luat_mobile_get_last_notify_cell_info(&s_cell_info);
 			if (s_cell_info.lte_service_info.cid)
@@ -102,14 +120,15 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
 							s_cell_info.lte_info[i].rsrq, s_cell_info.lte_info[i].snr);
 				}
 			}
+			#endif
 			break;
 		case LUAT_MOBILE_SIGNAL_UPDATE:
-			LUAT_DEBUG_PRINT("服务小区信号状态变更");
 			luat_mobile_get_last_notify_signal_strength_info(&signal_info);
 			luat_mobile_get_last_notify_signal_strength(&csq);
+			svSignal = csq;
 			if (signal_info.luat_mobile_lte_signal_strength_vaild)
 			{
-				LUAT_DEBUG_PRINT("rsrp %d, rsrq %d, snr %d, rssi %d, csq %d %d", signal_info.lte_signal_strength.rsrp,
+				LUAT_DEBUG_PRINT("信号状态变更 rsrp %d, rsrq %d, snr %d, rssi %d, csq %d %d", signal_info.lte_signal_strength.rsrp,
 						signal_info.lte_signal_strength.rsrq, signal_info.lte_signal_strength.snr,
 						signal_info.lte_signal_strength.rssi, csq, luat_mobile_rssi_to_csq(signal_info.lte_signal_strength.rssi));
 			}
@@ -179,13 +198,14 @@ static void mobile_get_band_string(uint8_t band1[], uint8_t total_num1, char *re
     }
 }
 
-
-void mobile_get_imei(void)
+static void mobile_main_routine(void *param)
 {
-	int i;
-	char imei[20] = {0};
-	luat_mobile_get_imei(0, imei, sizeof(imei));
-	LUAT_DEBUG_PRINT("IMEI %s", imei);
+	uint32_t message_id = 0;
+	LUAT_SMS_RECV_MSG_T *data = NULL;
+	while(1)
+	{
+		luat_rtos_task_sleep(1000);
+	}
 }
 
 void mobile_set_sn(char *newSn)
@@ -240,25 +260,13 @@ void mobile_get_cell_info(void)
     }
 }
 
-static void mobile_main_routine(void *param)
+void mobile_taskinit(void)
 {
-    // 这几个不放到task里面要死；完了直接退也要死，真他妈恶心
-    mobile_get_imei();
-    mobile_get_muid();
-    mobile_get_band();
+	luat_sms_init();
+    luat_sms_recv_msg_register_handler(sms_recv_cb);
+    luat_sms_send_msg_register_handler(sms_send_cb);
 
-	while(1)
-	{
-        luat_rtos_task_sleep(1000);
-		// luat_rtos_task_sleep(MOBILE_CELL_REFRESH_TIME);
-        // mobile_get_cell_info();
-	}
-}
-
-void task_mobile(void)
-{
 	luat_mobile_event_register_handler(mobile_event_cb);
-	luat_mobile_sms_event_register_handler(sms_event_cb);
 
 	luat_mobile_set_period_work(90000, 5000, 4);	//90秒搜索基站间隔，5秒sim卡脱离的尝试恢复间隔，每次基站搜索最大4s
 	luat_mobile_set_check_network_period(120000);   // 设置定时检测网络是否正常并且在检测到长时间无网时通过重启协议栈来恢复，但是不能保证一定成功

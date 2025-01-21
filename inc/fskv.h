@@ -11,6 +11,9 @@ typedef enum _FSKV_ITEM
 {
     FSKV_EVT_COUNTER_C = 0,
     FSKV_EVT_COUNTER_D,
+    FSKV_EVT_COUNTER_E,
+    FSKV_EVT_COUNTER_R,
+    FSKV_EVT_COUNTER_W,
     FSKV_EVT_COINER_SW2,    /* output pulse width */
     FSKV_EVT_COIN_IN_LOW,
     FSKV_EVT_COIN_IN_HIGH,

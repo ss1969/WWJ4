@@ -12,6 +12,7 @@ uint8_t Str2Hex32(char *str, uint32_t *num);
 uint8_t Str2Hex64(char *str, uint64_t *num);
 
 uint8_t Str2Binary(char *str, uint8_t *Num);
+char* convertToUnicode(const char* hexStr);
 
 #endif
 

@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define MaxLenStr 80
 
@@ -100,6 +101,42 @@ uint8_t Str2Binary(char *str, uint8_t *Num)
 		return 1;
 	}
 	else return 0;
-
 }
 
+
+// 连续的HEX字符串转成unicode，"3010652F4ED8" =>"\u3010\u652F\u4ED8"
+char* convertToUnicode(const char* hexStr)
+{
+    if (hexStr == NULL || strlen(hexStr) % 4 != 0) {
+        printf("Length not correct\n");
+        return NULL;
+    }
+
+    size_t hexLen = strlen(hexStr);
+    size_t unicode_len = hexLen / 4;
+    char* unicode_str = (char*)malloc((unicode_len * 3 + 1) * sizeof(char)); // UTF-8编码可能需要最多3个字节
+    if (unicode_str == NULL) {
+        printf("memory lock fail\n");
+        return NULL;
+    }
+
+    char* ptr = unicode_str;
+    for (size_t i = 0; i < hexLen; i += 4) {
+        unsigned int code_point;
+        sscanf(hexStr + i, "%4X", &code_point);
+
+        if (code_point <= 0x7F) {
+            *ptr++ = code_point;
+        } else if (code_point <= 0x7FF) {
+            *ptr++ = 0xC0 | ((code_point >> 6) & 0x1F);
+            *ptr++ = 0x80 | (code_point & 0x3F);
+        } else {
+            *ptr++ = 0xE0 | ((code_point >> 12) & 0x0F);
+            *ptr++ = 0x80 | ((code_point >> 6) & 0x3F);
+            *ptr++ = 0x80 | (code_point & 0x3F);
+        }
+    }
+    *ptr = '\0';
+
+    return unicode_str;
+}

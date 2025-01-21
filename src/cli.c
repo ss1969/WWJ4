@@ -30,7 +30,7 @@ static const char back_str[] = {0x08, ' ', 0x08, 0};
 
 //---------------------------------------------------------------------------------------------
 #define clearInputBuf()	memset(recv_buf, 0, MAX_BUF_LEN)
-#define printPrompt()	usart_print(CLI_PROMPT)
+#define printPrompt()	uart_print(CLI_PROMPT)
 
 //---------------------------------------------------------------------------------------------
 extern void Str2Lwr(char *str);
@@ -41,7 +41,7 @@ static void tabComplete(char *inbuf, int *bp)
 	int i, n, m;
 	char *fm = NULL;
 
-	usart_print("\n");
+	uart_print("\n");
 	/* show matching commands */
 	for (i = 0, n = 0, m = 0; i < cli_num && n < cli_num; i++){
 		if(cli[i].name != NULL){
@@ -50,10 +50,10 @@ static void tabComplete(char *inbuf, int *bp)
 				if(m == 1)
 					fm = cli[i].name;
 				else if(m == 2){
-					usart_print("%s ", fm);
-					usart_print("%s ", cli[i].name);
+					uart_print("%s ", fm);
+					uart_print("%s ", cli[i].name);
 				}else{
-					usart_print("%s ", cli[i].name);
+					uart_print("%s ", cli[i].name);
 				}
 			}
 			n++;
@@ -71,13 +71,13 @@ static void tabComplete(char *inbuf, int *bp)
 		}
 	}
 	if(m>1){
-		usart_print("\n");
+		uart_print("\n");
 	}
 
 	/* just redraw input line */
-	usart_print("\033[2K\r");
+	uart_print("\033[2K\r");
 	printPrompt();
-	usart_print("%s", inbuf);
+	uart_print("%s", inbuf);
 }
 
 //---------------------------------------------------------------------------------------------
@@ -113,7 +113,7 @@ static int cliGetInput(void)
 {
 	char ch;
 	while (1){
-		if(usart_getchar(&ch) == 0){
+		if(uart_getchar(&ch) == 0){
 			DELAY(10);
 			continue;
 		}
@@ -151,9 +151,9 @@ static int cliGetInput(void)
 				}
 				/* copy the history command */
 				memcpy(recv_buf, &cmd_history[current_history][0], MAX_BUF_LEN);
-				usart_print("\033[2K\r");
+				uart_print("\033[2K\r");
 				printPrompt();
-				recv_num = usart_print("%s", recv_buf);
+				recv_num = uart_print("%s", recv_buf);
 				continue;
 			}
 			else if(ch == 0x42){ /* down key */
@@ -170,9 +170,9 @@ static int cliGetInput(void)
 
 				/* copy the history command */
 				memcpy(recv_buf, &cmd_history[current_history][0], MAX_BUF_LEN);
-				usart_print("\033[2K\r");
+				uart_print("\033[2K\r");
 				printPrompt();
-				recv_num = usart_print("%s", recv_buf);
+				recv_num = uart_print("%s", recv_buf);
 				continue;
 			}
 			else if(ch == 0x44){ /* left key */
@@ -196,8 +196,8 @@ static int cliGetInput(void)
 			if(recv_num > 0)
 			{
 			  (recv_num)--;
-				usart_print("%s", back_str);
-				//usart_tx(0x08); usart_tx(' ');usart_tx(0x08);
+				uart_print("%s", back_str);
+				//uart_tx(0x08); uart_tx(' ');uart_tx(0x08);
 			}
 			continue;
 		}
@@ -209,12 +209,12 @@ static int cliGetInput(void)
 		}
 
 		if(recv_buf[recv_num] >= 32){
-			usart_print("%c", recv_buf[recv_num]);
+			uart_print("%c", recv_buf[recv_num]);
 			recv_num++;
 		}
 
 		if(recv_num >= MAX_BUF_LEN){
-			usart_print("Error: input buffer overflow\n");
+			uart_print("Error: input buffer overflow\n");
 			printPrompt();
 			recv_num = 0;
 			return 0;
@@ -322,7 +322,7 @@ static int handleInput(void)
 		return 2;
 
 	if(argc < 1){
-		usart_print("\n");
+		uart_print("\n");
 		return 1;
 	}
 
@@ -333,16 +333,16 @@ static int handleInput(void)
 	 */
 	i = ((p = strchr(argv[0], '.')) == NULL) ? 0 : (p - argv[0]);
 	for(j = 0; j< argc; j++)
-		usart_print("\nargv[%d] is %s\n", j, argv[j]);
+		uart_print("\nargv[%d] is %s\n", j, argv[j]);
 #endif
 
 	command = lookupCommand(argv[0]);
 	if(command == NULL){
-		usart_print("\nUnknown Command!\n");
+		uart_print("\nUnknown Command!\n");
 		return 0;
 	}
 
-	usart_print("\n");
+	uart_print("\n");
 	command->function(argc, argv);
 
 	return 1;
@@ -353,10 +353,10 @@ void CliPrintCmdList(void)
 {
 	int i;
 	for(i = 0; i < cli_num; i++){
-		usart_print("%s\t", cli[i].name);
+		uart_print("%s\t", cli[i].name);
 		if(strlen(cli[i].name) < 8)
-			usart_print("\t");
-		usart_print("%s\n", cli[i].help);
+			uart_print("\t");
+		uart_print("%s\n", cli[i].help);
 	}
 }
 
@@ -366,10 +366,10 @@ static void cli_main_routine(void *param)
 	LUAT_DEBUG_PRINT("cli_main_routine start");
 
 	char ch = 0;
-	usart_print("\n!!! PRESS Ctrl-C FOR CLI !!!\n\n");
+	uart_print("\n!!! PRESS Ctrl-C FOR CLI !!!\n\n");
 
 	while(true){
-		if(usart_getchar(&ch) == 0){
+		if(uart_getchar(&ch) == 0){
 			DELAY(100);
 			continue;
 		}
@@ -377,10 +377,10 @@ static void cli_main_routine(void *param)
 			break;
 	}
 
-	usart_print("Command         Function \n");
-	usart_print("---------------------------------------------------------------------\n");
+	uart_print("Command         Function \n");
+	uart_print("---------------------------------------------------------------------\n");
 	CliPrintCmdList();
-	usart_print("\n");
+	uart_print("\n");
 	printPrompt();
 
 	while(1){
@@ -392,7 +392,7 @@ static void cli_main_routine(void *param)
 	}
 }
 
-void task_console(void)
+void cli_taskinit(void)
 {
     luat_rtos_task_create(&task_cli_handle, 8*1024, 10, "task_cli", cli_main_routine, NULL, 0);
 }

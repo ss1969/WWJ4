@@ -6,47 +6,56 @@
 #include "wrapper.h"
 
 /* General Configs */
-#define SYSTEM_NAME			"WWJNFC-401"
+#define SYSTEM_NAME			"WWJ-780EP"
 #define SOFTWARE_VERSION	1
-#define HARDWARE_VERISON 	4
-#define SUNNY_MAGIC_ID		0xFF12FF34
+#define HARDWARE_VERSION 	4
 #define CONFIG_HACK_GAP_MIN		75
 
 /* vars 计数器 */
 extern volatile uint32_t svCounterC;
 extern volatile uint32_t svCounterD;
-extern volatile uint32_t svTicketIn;	/* coin/doll counter, 插入彩票数字 */
+extern volatile uint32_t svTicketIn;
+extern volatile uint32_t svCounterW;
+extern volatile uint32_t svCounterR;
+extern volatile uint32_t svCounterE;
 
 /* vars 系统状态控制 */
-extern uint8_t svDbgOn;		/* 显示Debug信息 */
-extern uint8_t svDbgCoin;		/* 显示彩票和投币debug信息 */
-extern uint8_t svBooting;		/* 系统还在启动状态 */
-extern uint32_t svErrorFlag;		/* 错误标志 */
-extern char svServerConnected; /* 是否连接了服务器 */
-extern short svPing;				/* 心跳回应毫秒值 */
+extern uint8_t svDbgOn;
+extern uint8_t svDbgCoin;
+extern uint8_t svBooting;
+extern uint8_t svTicketDirectOut;
+extern uint8_t svSignal;
+extern uint32_t svErrorFlag;
+extern uint32_t svErrorCount;
+extern char svServerConnected;
+extern short svPing;
+extern char svLastCommandExecuted[32];  //k 未处理
 
 /* vars 系统设置信息 */
-extern char svSystemID[10];              /* Unique ID */
+extern char svSystemID[32];
+extern char svIMEI[20];
+extern char svIMSI[20];
+extern char svICCID[24];
 extern uint8_t svDeviceType;
-extern uint8_t svCardDirection;	         /* 刷卡头开口方向, 1开口向上（默认选项），然后是向下，向左，向右 */
-extern uint8_t svDeviceStatus;			 /* 设备状态 0 正常 1 未初始化 2 未绑定 */
-extern char svUrlWXPay[256];			 /* 微信支付地址 */
-extern char svUrlOta[256];			     /* 升级包地址 */
+extern uint8_t svCardDirection;
+extern uint8_t svDeviceStatus;
+extern char svUrlWXPay[256];
+extern char svUrlOta[256];
 
-extern uint8_t svCoinSw2;		         /* 投币脉冲宽度 */
-extern uint8_t svCoinPulseWidthInLow ;	 /* COIN PIN脉冲宽度判断下限 */
-extern uint8_t svCoinPulseWidthInHigh;	 /* COIN PIN脉冲宽度判断上限 */
-extern uint8_t svPrizePulseWidthInLow;	 /* PRIZE PIN脉冲宽度判断下限 */
-extern uint8_t svPrizePulseWidthInHigh;  /* PRIZE PIN脉冲宽度判断上限 */
-extern uint8_t svCoinPerPlay;			 /* 按键后一次投币数字 */
-extern uint8_t svCoinPerPlay2;			 /* 按键后一次投币数字(第二按钮) */
+extern uint8_t svCoinSw2;
+extern uint8_t svCoinPulseWidthInLow ;
+extern uint8_t svCoinPulseWidthInHigh;
+extern uint8_t svPrizePulseWidthInLow;
+extern uint8_t svPrizePulseWidthInHigh;
+extern uint8_t svCoinPerPlay;
+extern uint8_t svCoinPerPlay2;
 extern uint8_t svTEpulse;
 
 /* vars 下载图片数据及长宽 */
-extern uint8_t svMerchantImage[24 * 24 * 6 / 8]; /* 商户名称点阵图，最大24像素6字 */
-extern uint8_t svShopImage[24 * 24 * 9 / 8];	  /* 店铺名称点阵图，最大24像素9字 */
-extern uint8_t svDeviceImage[20 * 20 * 11 / 8];  /* 设备名称点阵图，最大20像素11字 */
-extern uint8_t svDeviceText[32];				  /* 设备名称GBK字符串，最大16字 */
+extern uint8_t svMerchantImage[24 * 24 * 6 / 8];
+extern uint8_t svShopImage[24 * 24 * 9 / 8];
+extern uint8_t svDeviceImage[20 * 20 * 11 / 8];
+extern uint8_t svDeviceText[32];
 extern uint16_t svMerchantImageWidth;
 extern uint16_t svMerchantImageHeight;
 extern uint16_t svShopImageWidth;
@@ -55,7 +64,7 @@ extern uint16_t svDeviceImageWidth;
 extern uint16_t svDeviceImageHeight;
 
 /* 设备的Debug信息回报 */
-extern uint32_t svDebugFlag; /* bit0 : report valid pulse, bit 1: report invalid pulse */
+extern uint32_t svDebugFlag;
 extern uint32_t dbgPulseCoin;
 extern uint32_t dbgPulsePrize;
 extern char dbgPulseFromWhere;

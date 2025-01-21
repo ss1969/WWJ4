@@ -41,6 +41,14 @@ target(project_name,function()
     add_files(luatos_root.."/components/network/libhttp/*.c")
     remove_files(luatos_root.."/components/network/libhttp/luat_lib_http.c")
     add_files(luatos_root.."/components/network/http_parser/*.c")
+    --cjson
+    add_includedirs(luatos_root .. "/components/cjson")
+    add_files(luatos_root.."/components/cjson/*.c")
+    --mqtt
+    add_includedirs(luatos_root.."/components/network/libemqtt", {public = true})
+    add_files(luatos_root.."/components/network/libemqtt/*.c")
+    remove_files(luatos_root.."/components/network/libemqtt/luat_lib_mqtt.c")
+
 
 
 end)

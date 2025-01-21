@@ -2,11 +2,12 @@
     sysinfo会重启
     pwm callback 可以设置，但是调用会重启
     scanf用hhx无效
-    irq里面连usart_print_async都不行，更别说普通的，直接重启，只能用 LUAT_DEBUG_PRINT
+    irq里面连uart_print_async都不行，更别说普通的，直接重启，只能用 LUAT_DEBUG_PRINT
         io设置上下拉触发的话，会开机触发一次中断，但是这次在中断里无法输出 LUAT_DEBUG_PRINT
-    gpio12\13和uart冲突，会造成20秒一次重启，具体uart未定
+    gpio12\13和uart冲突，会造成20秒一次重启，具体uart未定;34也会
     电源不稳会容易下载失败，必须一致按着BOOT直到开始
     下载binpkg不会reset，下载soc会
+    luat_pm_get_poweron_reason 读到永远0
 
 
 需要解决

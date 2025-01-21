@@ -4,30 +4,28 @@
 #include "ringbuffer.h"
 
 #define UART_1 1
-#define UART_2 3
-#define UART_3 2
+#define UART_2 2
 
-typedef struct {
+typedef struct _UART_CONFIG{
     int id;
     int baud_rate;
     int data_bits;
     int stop_bits;
     int parity;
-} uart_config_t;
+} UART_CONFIG;
 
-static uart_config_t uart_configs[] = {
+static UART_CONFIG uart_configs[] = {
     {1, 115200, 8, 1, 0},
     {2, 115200, 8, 1, 0},
-    {3, 115200, 8, 1, 0},
 };
 
 #define UART_DEBUG               UART_1
 #define UART_RXBUF_SIZE          128
 #define UART_RINGBUF_SIZE        1024
 
-int usart_tx(int uart_id, const char* buffer, size_t buffersize);
-int usart_getchar(char *ch);
-int usart_print(const char* format, ...);
-int usart_print_async(const char* format, ...);
+int uart_tx(int uart_id, const char* buffer, size_t buffersize);
+int uart_getchar(char *ch);
+int uart_print(const char* format, ...);
+int uart_print_async(const char* format, ...);
 
 #endif
