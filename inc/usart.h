@@ -27,5 +27,7 @@ int uart_tx(int uart_id, const char* buffer, size_t buffersize);
 int uart_getchar(char *ch);
 int uart_print(const char* format, ...);
 int uart_print_async(const char* format, ...);
+void uart_taskinit(void);
+void uart_deinit(void);
 
 #endif

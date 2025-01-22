@@ -110,6 +110,8 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event)
 			const char* ptrTopic, *ptrData = NULL;
 			uint16_t topicLen = mqtt_parse_pub_topic_ptr(ctrl->mqtt_packet_buffer, &ptrTopic);
 			uint32_t payloadLen = mqtt_parse_pub_msg_ptr(ctrl->mqtt_packet_buffer, &ptrData);
+			LUAT_DEBUG_PRINT("MQTT_MSG_PUBLISH ----------> %d payload", payloadLen);
+
 			for(int i = 0; i < MQTT_SUB_ACTIONS_DEF_COUNT; i++){
 				if(memcmp(ptrTopic, MQTT_SUB_ACTIONS[i].topicString, topicLen) == 0){	// topic相符则调用 DataHandler
 					MQTT_SUB_ACTIONS[i].DataHandler(ptrData, payloadLen);
@@ -292,7 +294,16 @@ void mqtt_taskinit(void)
 	luat_rtos_task_create(&task_mqtt_handle, 8 * 1024, 10, "task_mqtt", mqtt_main_routine, NULL, 16);
 }
 
-void mqtt_taskdeinit(void)
+void mqtt_deinit(void)
 {
+	uint16_t msgId;
+	for(int i = 0; i < MQTT_SUB_ACTIONS_DEF_COUNT; i++){
+		mqtt_unsubscribe(&mqttHandle->broker, MQTT_SUB_ACTIONS[i].topicString, &msgId);
+		LUAT_DEBUG_PRINT("Unsubscribing to topic: %s, msgID %d", MQTT_SUB_ACTIONS[i].topicString, msgId);
+	}
 	luat_rtos_semaphore_delete(mqtt_sema_puback);
+	luat_rtos_task_suspend(task_mqtt_handle);
+	luat_rtos_task_delete(task_mqtt_handle);
+
+	LUAT_DEBUG_PRINT("mqtt_deinit end");
 }

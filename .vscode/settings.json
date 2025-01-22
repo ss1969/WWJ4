@@ -54,7 +54,9 @@
         "string_view": "c",
         "ranges": "c",
         "mqttdata.h": "c",
-        "memory_resource": "c"
+        "memory_resource": "c",
+        "random": "c",
+        "tecontrol.h": "c"
     },
     "files.autoSave": "onFocusChange"
 }

@@ -14,6 +14,7 @@
 #include "wgpio.h"
 #include "fskv.h"
 #include "mqttdata.h"
+#include "tecontrol.h"
 
 #include "cli.h"
 
@@ -167,7 +168,7 @@ static void cmd_env(int argc, char** argv)
     uart_print("9  svCoinPulseWidthInHigh %d\n", svCoinPulseWidthInHigh);
     uart_print("10 svPrizePulseWidthInLow %d\n", svPrizePulseWidthInLow);
     uart_print("11 svPrizePulseWidthInHigh %d\n", svPrizePulseWidthInHigh);
-    uart_print("12 svCardDirection %d\n", svCardDirection);
+    uart_print("12 svDeviceDirection %d\n", svDeviceDirection);
     uart_print("13 svCoinPerPlay %d\n", svCoinPerPlay);
     uart_print("14 svCoinPerPlay2 %d\n", svCoinPerPlay2);
     uart_print("17 svTEpulse %d\n", svTEpulse);
@@ -199,11 +200,11 @@ static void cmd_set(int argc, char** argv)
     	case  7: fskv_save_async(FSKV_EVT_COINER_SW2, value); uart_print("set svCoinSw2 width %d\n", svCoinSw2); break;
     	case  8: fskv_save_async(FSKV_EVT_COIN_IN_LOW, value); uart_print("set svCoinPulseWidthInLow %d\n", svCoinPulseWidthInLow); break;
     	case  9: fskv_save_async(FSKV_EVT_COIN_IN_HIGH, value); uart_print("set svCoinPulseWidthInHigh %d\n", svCoinPulseWidthInHigh); break;
-    	case 10: fskv_save_async(FSKV_EVT_PRZ_IN_LOW, value); uart_print("set svPrizePulseWidthInLow %d\n", svPrizePulseWidthInLow); break;
+    	case 10: fskv_save_async(FSKV_EVT_TICKET_IN_LOW, value); uart_print("set svPrizePulseWidthInLow %d\n", svPrizePulseWidthInLow); break;
     	case 11: fskv_save_async(FSKV_EVT_COIN_IN_HIGH, value); uart_print("set svPrizePulseWidthInHigh %d\n", svPrizePulseWidthInHigh); break;
-    	case 12: fskv_save_async(FSKV_EVT_DEV_DIR, value); uart_print("set svCardDirection %d\n", svCardDirection); break;
-    	case 13: fskv_save_async(FSKV_EVT_COIN_BTN1, value); uart_print("set svCoinPerPlay %d\n", svCoinPerPlay); break;
-    	case 14: fskv_save_async(FSKV_EVT_COIN_BTN2, value); uart_print("set svCoinPerPlay2 %d\n", svCoinPerPlay2); break;
+    	case 12: fskv_save_async(FSKV_EVT_DEV_SCREEN_DIR, value); uart_print("set svDeviceDirection %d\n", svDeviceDirection); break;
+    	case 13: fskv_save_async(FSKV_EVT_COIN_PERPLAY_BTN1, value); uart_print("set svCoinPerPlay %d\n", svCoinPerPlay); break;
+    	case 14: fskv_save_async(FSKV_EVT_COIN_PERPLAY_BTN2, value); uart_print("set svCoinPerPlay2 %d\n", svCoinPerPlay2); break;
     	case 17: fskv_save_async(FSKV_EVT_TE_PULSE, value); uart_print("set svTEpulse %d\n", svTEpulse); break;
 	}
 }
@@ -249,6 +250,19 @@ static void cmd_ticket(int argc, char** argv)
 }
 
 //---------------------------------------------------------------------------------------------
+static void cmd_direct(int argc, char** argv)
+{
+	uint32_t d;
+
+	if((Str2Dec32(argv[1], &d) == 0)){
+		uart_print("direct count error :%d\n", d);
+		return;
+	}
+	uart_print("direct ticket out: %d -> %d\n", svTicketDirectOut, d);
+	te_set_direct_out(d);
+}
+
+//---------------------------------------------------------------------------------------------
 static void cmd_test1(int argc, char** argv)
 {
 	mqtt_pub_status();
@@ -281,6 +295,7 @@ struct cli_command cli[] = {
 	{"dbg",             "dbg",              				cmd_sys_debugcoin},
 	{"coin",            "coin [count]",    				    cmd_coin},
 	{"ticket",          "ticket [count]",    				cmd_ticket},
+	{"direct",          "direct out mode",    				cmd_direct},
 	// {"prize",           "prize [count]",         			cmd_prize},
 	{"t1",            "test1",        	    				cmd_test1},
 	{"t2",            "test2",         						cmd_test2},

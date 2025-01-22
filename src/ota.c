@@ -25,9 +25,9 @@
 #include "luat_http.h"
 #include "luat_mem.h"
 
+#include "sysvars.h"
+
 luat_rtos_task_handle ota_task_handle;
-luat_rtos_task_handle g_s_version_print_task_handle;
-char fota_image_full_url[] = "http://www.air32.cn/update.bin";
 
 typedef struct
 {
@@ -56,47 +56,47 @@ static void ota_http_cb(int status, void *data, uint32_t len, void *param)
 	}
 	switch(status)
 	{
-	case HTTP_STATE_GET_BODY:
-		if (data)
-		{
-			ota_data = luat_heap_malloc(len);
-			memcpy(ota_data, data, len);
-			luat_rtos_event_send(download->task_handle, OTA_HTTP_GET_DATA, (uint32_t)ota_data, len, 0, 0);
-			download->http_data_cnt++;
-			//对下载速度进行控制，如果下载速度过快，会导致ram耗尽出错
-			if (download->http_data_cnt > 6)
+		case HTTP_STATE_GET_BODY:
+			if (data)
 			{
-				if (!download->http->is_pause)
+				ota_data = luat_heap_malloc(len);
+				memcpy(ota_data, data, len);
+				luat_rtos_event_send(download->task_handle, OTA_HTTP_GET_DATA, (uint32_t)ota_data, len, 0, 0);
+				download->http_data_cnt++;
+				//对下载速度进行控制，如果下载速度过快，会导致ram耗尽出错
+				if (download->http_data_cnt > 6)
 				{
-					luat_http_client_pause(download->http, 1);
+					if (!download->http->is_pause)
+					{
+						luat_http_client_pause(download->http, 1);
+					}
 				}
 			}
-		}
-		else
-		{
-			luat_rtos_event_send(download->task_handle, OTA_HTTP_GET_DATA_DONE, 0, 0, 0, 0);
-		}
-		break;
-	case HTTP_STATE_GET_HEAD:
-		if (data)
-		{
-			LUAT_DEBUG_PRINT("%s", data);
-		}
-		else
-		{
-			luat_rtos_event_send(download->task_handle, OTA_HTTP_GET_HEAD_DONE, 0, 0, 0, 0);
-		}
-		break;
-	case HTTP_STATE_IDLE:
-		break;
-	case HTTP_STATE_SEND_BODY_START:
-		//如果是POST，在这里发送POST的body数据，如果一次发送不完，可以在HTTP_STATE_SEND_BODY回调里继续发送
-		break;
-	case HTTP_STATE_SEND_BODY:
-		//如果是POST，可以在这里发送POST剩余的body数据
-		break;
-	default:
-		break;
+			else
+			{
+				luat_rtos_event_send(download->task_handle, OTA_HTTP_GET_DATA_DONE, 0, 0, 0, 0);
+			}
+			break;
+		case HTTP_STATE_GET_HEAD:
+			if (data)
+			{
+				LUAT_DEBUG_PRINT("%s", data);
+			}
+			else
+			{
+				luat_rtos_event_send(download->task_handle, OTA_HTTP_GET_HEAD_DONE, 0, 0, 0, 0);
+			}
+			break;
+		case HTTP_STATE_IDLE:
+			break;
+		case HTTP_STATE_SEND_BODY_START:
+			//如果是POST，在这里发送POST的body数据，如果一次发送不完，可以在HTTP_STATE_SEND_BODY回调里继续发送
+			break;
+		case HTTP_STATE_SEND_BODY:
+			//如果是POST，可以在这里发送POST剩余的body数据
+			break;
+		default:
+			break;
 	}
 }
 
@@ -108,14 +108,15 @@ static void ota_main_rountine(void *param)
 	char version[20] = {0};
 	luat_event_t event;
 	int result;
-	size_t all, now_free_block, min_free_block, done_len;
+	size_t all, now_free_block, min_free_block, done_len = 0;
 
 	http_download_ctrl_t download;
 	download.http_data_cnt = 0;
 	download.task_handle = luat_rtos_get_current_handle();
 	download.http = luat_http_client_create(ota_http_cb, &download, -1);
 	luat_fota_init(0, 0, NULL, NULL, 0);
-	luat_http_client_start(download.http, fota_image_full_url, 0, 0, 1);
+	luat_http_client_start(download.http, svUrlOta, 0, 0, 1);
+	LUAT_DEBUG_PRINT("ota start url %s", svUrlOta);
 
 	while (1)
 	{
@@ -147,21 +148,21 @@ static void ota_main_rountine(void *param)
             case OTA_HTTP_GET_DATA_DONE:
                 if (!luat_fota_done())
                     luat_os_reboot(0);
-
                 LUAT_DEBUG_PRINT("full ota 测试失败");
                 luat_http_client_close(download.http);
                 luat_http_client_destroy(&download.http);
                 while(1) luat_rtos_task_sleep(60000);
                 break;
             case OTA_HTTP_FAILED:
+                LUAT_DEBUG_PRINT("full ota 测试失败");
                 break;
 		}
 	}
 }
 
-static void ota_task(void)
+void ota_taskinit(void)
 {
-	luat_rtos_task_create(&ota_task_handle, 4 * 1024, 50, "test", ota_main_rountine, NULL, 0);
+	luat_rtos_task_create(&ota_task_handle, 4 * 1024, 50, "ota_task", ota_main_rountine, NULL, 0);
 }
 
 

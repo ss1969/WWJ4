@@ -87,14 +87,14 @@ static void fskv_read_data(void)
 	ef_get_num8("pulsec2", &svCoinPulseWidthInHigh);
 	ef_get_num8("pulsec3", &svPrizePulseWidthInLow);
 	ef_get_num8("pulsec4", &svPrizePulseWidthInHigh);
-	ef_get_num8("dir", &svCardDirection);
+	ef_get_num8("dir", &svDeviceDirection);
 	ef_get_num8("coinbtn1", &svCoinPerPlay);
 	ef_get_num8("coinbtn2", &svCoinPerPlay2);
 	ef_get_num8("tepulse", &svTEpulse);
 }
 
 /* reset counters */
-static void fskv_reset_data(void)
+void fskv_reset_data(void)
 {
 	LUAT_DEBUG_PRINT("fskv_reset_data");
 	luat_fskv_clear();
@@ -117,7 +117,7 @@ static void fskv_reset_data(void)
 	svCoinPulseWidthInHigh = 105;
 	svPrizePulseWidthInLow = 15;
 	svPrizePulseWidthInHigh = 105;
-	svCardDirection = 0;
+	svDeviceDirection = 0;
 	svCoinPerPlay = 1;
 	svCoinPerPlay2 = 2;
 	svTEpulse = 80;
@@ -130,7 +130,7 @@ static void fskv_reset_data(void)
 	ef_set_num8("pulsec2", svCoinPulseWidthInHigh);
 	ef_set_num8("pulsec3", svPrizePulseWidthInLow);
 	ef_set_num8("pulsec4", svPrizePulseWidthInHigh);
-	ef_set_num8("dir", svCardDirection);
+	ef_set_num8("dir", svDeviceDirection);
 	ef_set_num8("coinbtn1", svCoinPerPlay);
 	ef_set_num8("coinbtn2", svCoinPerPlay2);
 	ef_set_num8("tepulse", svTEpulse);
@@ -180,13 +180,13 @@ static void fskv_main_rountine(void *param)
 			case FSKV_EVT_COINER_SW2: SETNU8("coinsw2", svCoinSw2);
 			case FSKV_EVT_COIN_IN_LOW: SETNU8("pulsec1", svCoinPulseWidthInLow);
 			case FSKV_EVT_COIN_IN_HIGH: SETNU8("pulsec2", svCoinPulseWidthInHigh);
-			case FSKV_EVT_PRZ_IN_LOW: SETNU8("pulsec3", svPrizePulseWidthInLow);
-			case FSKV_EVT_PRZ_IN_HIGH: SETNU8("pulsec4", svPrizePulseWidthInHigh);
+			case FSKV_EVT_TICKET_IN_LOW: SETNU8("pulsec3", svPrizePulseWidthInLow);
+			case FSKV_EVT_TICKET_IN_HIGH: SETNU8("pulsec4", svPrizePulseWidthInHigh);
 			case FSKV_EVT_DEV_STATUS: SETNU8("dstatus", svDeviceStatus);
 			case FSKV_EVT_DEV_TYPE: SETNU8("dtype", svDeviceType);
-			case FSKV_EVT_DEV_DIR: SETNU8("dir", svCardDirection);
-			case FSKV_EVT_COIN_BTN1: SETNU8("coinbtn1", svCoinPerPlay);
-			case FSKV_EVT_COIN_BTN2: SETNU8("coinbtn2", svCoinPerPlay2);
+			case FSKV_EVT_DEV_SCREEN_DIR: SETNU8("dir", svDeviceDirection);
+			case FSKV_EVT_COIN_PERPLAY_BTN1: SETNU8("coinbtn1", svCoinPerPlay);
+			case FSKV_EVT_COIN_PERPLAY_BTN2: SETNU8("coinbtn2", svCoinPerPlay2);
 			case FSKV_EVT_TE_PULSE: SETNU8("tepulse", svTEpulse);
 			// string types
 			case FSKV_EVT_URL_WXPAY: SETSTR("urlWxPay", svUrlWXPay);

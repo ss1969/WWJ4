@@ -17,13 +17,13 @@ typedef enum _FSKV_ITEM
     FSKV_EVT_COINER_SW2,    /* output pulse width */
     FSKV_EVT_COIN_IN_LOW,
     FSKV_EVT_COIN_IN_HIGH,
-    FSKV_EVT_PRZ_IN_LOW,
-    FSKV_EVT_PRZ_IN_HIGH,
+    FSKV_EVT_TICKET_IN_LOW,
+    FSKV_EVT_TICKET_IN_HIGH,
     FSKV_EVT_DEV_STATUS,
     FSKV_EVT_DEV_TYPE,
-    FSKV_EVT_DEV_DIR,
-    FSKV_EVT_COIN_BTN1,
-    FSKV_EVT_COIN_BTN2,
+    FSKV_EVT_DEV_SCREEN_DIR,
+    FSKV_EVT_COIN_PERPLAY_BTN1,
+    FSKV_EVT_COIN_PERPLAY_BTN2,
     FSKV_EVT_TE_PULSE,
 
     FSKV_EVT_URL_WXPAY,
@@ -31,7 +31,9 @@ typedef enum _FSKV_ITEM
 
 }FSKV_ITEM;
 
+void fskv_reset_data(void);
 void fskv_save_async(FSKV_ITEM item, uint32_t p1);
-
+void fskv_taskinit(void);
+void fskv_deinit(void);
 
 #endif

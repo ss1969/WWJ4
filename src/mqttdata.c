@@ -11,6 +11,9 @@
 
 #include "mqttdata.h"
 #include "mqtt.h"
+#include "fskv.h"
+#include "wgpio.h"
+#include "tecontrol.h"
 
 /********************** FOR PUBLISH **********************/
 #define MQTT_PUB_QOS		        1
@@ -28,7 +31,10 @@ static char * status2Json(StatusReport *report)
     cJSON_AddNumberToObject(jsonObj, "hardwareVersion", report->hardwareVersion);
     cJSON_AddNumberToObject(jsonObj, "firmwareVersion", report->firmwareVersion);
     cJSON_AddStringToObject(jsonObj, "imei", report->imei);
-    cJSON_AddNumberToObject(jsonObj, "directTicketOut", report->directTicketOut);
+    cJSON_AddStringToObject(jsonObj, "imsi", report->imsi);
+    cJSON_AddStringToObject(jsonObj, "iccid", report->iccid);
+    cJSON_AddStringToObject(jsonObj, "phone", report->phone);
+    cJSON_AddNumberToObject(jsonObj, "ticketDirectOut", report->ticketDirectOut);
     cJSON_AddNumberToObject(jsonObj, "signal", report->signal);
     cJSON_AddNumberToObject(jsonObj, "pinCoinerInit", report->pinCoinerInit);
     cJSON_AddNumberToObject(jsonObj, "pinMbOnoffInit", report->pinMbOnoffInit);
@@ -81,7 +87,8 @@ void mqtt_pub_status(void)
     strcpy(sts.imei, svIMEI);
     strcpy(sts.imsi, svIMSI);
     strcpy(sts.iccid, svICCID);
-    sts.directTicketOut = svTicketDirectOut;
+    strcpy(sts.phone, svPhoneNumber);
+    sts.ticketDirectOut = svTicketDirectOut;
     sts.signal = svSignal;
     sts.pinCoinerInit = 0; //k
     sts.pinMbOnoffInit = 0;//k
@@ -124,6 +131,14 @@ void mqtt_pub_sms(char* time, char* phone, char* pdu)
         mqtt_publish_data(topic, json, MQTT_PUB_QOS);
     }
 }
+
+/********************** FOR SUBSCRIBE **********************/
+enum _MQTT_COMMAND_IDS{
+    MQTT_CMD_INSERTCOIN = 1,
+    MQTT_CMD_RESETCOUNTER = 2,
+    MQTT_CMD_DIRECTOUTMODE = 3,
+    MQTT_CMD_REBOOT = 99,
+}MQTT_COMMAND_IDS;
 
 /* Mqtt的json数据和配置结构体来回转换 */
 static int json2Config(char *jsonIn, MqttConfig *config)
@@ -290,7 +305,7 @@ static int json2Command(char *jsonIn, Command *cmd)
         cJSON_Delete(json);
         return -1;
     }
-    strcpy(cmd->commandParam, item->valuestring);
+    strncpy(cmd->commandParam, item->valuestring, sizeof(cmd->commandParam));
 
     cJSON_Delete(json);
     return 0;
@@ -298,25 +313,122 @@ static int json2Command(char *jsonIn, Command *cmd)
 
 void mqtt_data_cb_config(char* data, uint32_t len)
 {
+    /* 检查是不是一个broker清除retain message的操作 */
+    if(len == 0){
+        LUAT_DEBUG_PRINT("收到空config，这是一个解绑操作");
+        /* 这是一个解绑操作 */
+        fskv_reset_data();
+        LUAT_DEBUG_PRINT("fskv_reset_data() done");
+        luat_rtos_task_sleep(1000);
+        LUAT_DEBUG_PRINT("Reboot inited ");
+        luat_os_reboot(0);
+        return;
+    }
+
+    /* 正常命令 */
+    bool needReboot = false;
     MqttConfig config;
     if(json2Config(data, &config) != 0)
     {
         LUAT_DEBUG_PRINT("mqtt_data_cb_config() ERROR!!!! ");
         return;
     }
-    LUAT_DEBUG_PRINT("firmwareVersion %d", config.firmwareVersion);
+
+    // Info
+    LUAT_DEBUG_PRINT("/device/+/config RECEIVED!");
+    LUAT_DEBUG_PRINT("Firmware Version: %d", config.firmwareVersion);
+    LUAT_DEBUG_PRINT("Firmware URL: %s", config.firmwareUrl);
+    LUAT_DEBUG_PRINT("Resource URL: %s", config.resourceUrl);
+    LUAT_DEBUG_PRINT("System Mode: %d", config.systemMode);
+    LUAT_DEBUG_PRINT("Pay URL: %s", config.payUrl);
+    LUAT_DEBUG_PRINT("Save Ticket URL: %s", config.saveTicketUrl);
+    LUAT_DEBUG_PRINT("Coin Pulse Width: %d", config.coinPulseWidth);
+    LUAT_DEBUG_PRINT("Ticket Pulse Width: %d", config.ticketPulseWidth);
+    LUAT_DEBUG_PRINT("Coin Pulse Low: %d", config.coinPulseLow);
+    LUAT_DEBUG_PRINT("Coin Pulse High: %d", config.coinPulseHigh);
+    LUAT_DEBUG_PRINT("Ticket Pulse Low: %d", config.ticketPulseLow);
+    LUAT_DEBUG_PRINT("Ticket Pulse High: %d", config.ticketPulseHigh);
+    LUAT_DEBUG_PRINT("Coin Per Play: %d", config.coinPerPlay);
+    LUAT_DEBUG_PRINT("Direction: %d", config.direction);
+    LUAT_DEBUG_PRINT("TicketDirectOut: %d", config.ticketDirectOut);
+
+    // 需要重启的
+    if(config.systemMode != svDeviceType){
+        fskv_save_async(FSKV_EVT_DEV_TYPE, config.systemMode);
+        needReboot = true;
+    }
+    if(svCoinSw2 != config.coinPulseWidth){
+        fskv_save_async(FSKV_EVT_COINER_SW2, config.coinPulseWidth);
+        needReboot = true;
+    }
+
+    // 不需要重启的
+    fskv_save_async(FSKV_EVT_TE_PULSE, config.ticketPulseWidth); svTEpulse = config.ticketPulseWidth;
+    fskv_save_async(FSKV_EVT_COIN_IN_LOW, config.coinPulseLow); svCoinPulseWidthInLow = config.coinPulseLow;
+    fskv_save_async(FSKV_EVT_COIN_IN_HIGH, config.coinPulseHigh); svCoinPulseWidthInHigh = config.coinPulseHigh;
+    fskv_save_async(FSKV_EVT_TICKET_IN_LOW, config.ticketPulseLow); svPrizePulseWidthInLow = config.ticketPulseLow;
+    fskv_save_async(FSKV_EVT_TICKET_IN_HIGH, config.ticketPulseHigh); svPrizePulseWidthInHigh = config.ticketPulseHigh;
+    fskv_save_async(FSKV_EVT_COIN_PERPLAY_BTN1, config.coinPerPlay); svCoinPerPlay = config.coinPerPlay;
+    // fskv_save_async(FSKV_EVT_COIN_PERPLAY_BTN2, config.coinPerPlay2);
+    fskv_save_async(FSKV_EVT_DEV_SCREEN_DIR, config.direction); svDeviceDirection = config.direction;
+
+    te_set_direct_out(config.ticketDirectOut);
+
+    // 如果 升级则直接重启了
+    if(config.firmwareVersion > SOFTWARE_VERSION){
+        //initialize OTA
+        LUAT_DEBUG_PRINT("Start OTA: new version %d", config.firmwareVersion);
+        strcpy(svUrlOta, config.firmwareUrl);
+        extern void main_start_ota(void);
+        main_start_ota();
+        return;
+    }
+
+    // 重启
+    if(needReboot){
+        LUAT_DEBUG_PRINT("REBOOT required!");
+        luat_rtos_task_sleep(1000);
+        luat_os_reboot(0);
+    }
 }
 
 void mqtt_data_cb_command(char* data, uint32_t len)
 {
+    if(len == 0)
+        return;
+
     Command cmd;
 
-    if(json2Command(data, &cmd) != 0)
-    {
+    if(json2Command(data, &cmd) != 0){
         LUAT_DEBUG_PRINT("Mqtt_DataCallbackCommand() ERROR!!!! ");
         return;
     }
-    LUAT_DEBUG_PRINT("CommandId %d", cmd.commandId);
+
+    switch(cmd.commandId){
+        case MQTT_CMD_INSERTCOIN:{
+            int coin = strtoul(cmd.commandParam, NULL, 16);
+            strcpy(svLastCommandExecuted, cmd.timeStamp);
+            gpio_outCoin(coin);
+        }
+        break;
+        case MQTT_CMD_RESETCOUNTER:{
+            strcpy(svLastCommandExecuted, cmd.timeStamp);
+            //k
+        }
+        break;
+        case MQTT_CMD_DIRECTOUTMODE:{
+            int mode = strtoul(cmd.commandParam, NULL, 16);
+            strcpy(svLastCommandExecuted, cmd.timeStamp);
+            te_set_direct_out(mode ? 1 : 0);
+        }
+        break;
+        case MQTT_CMD_REBOOT:{
+            strcpy(svLastCommandExecuted, cmd.timeStamp);
+            LUAT_DEBUG_PRINT("Reboot required!");
+	        luat_os_reboot(0);
+        }
+        break;
+    }
 }
 
 /* clear json ptr */
@@ -347,23 +459,23 @@ void Testbench()
         "\"direction\":2"
         "}";
 
-    MqttConfig firmwareConfig = {0}; // 初始化结构体
-    if (json2Config(&json1, &firmwareConfig) == 0) {
+    MqttConfig config = {0}; // 初始化结构体
+    if (json2Config(&json1, &config) == 0) {
         LUAT_DEBUG_PRINT("Parsed firmware config successfully.");
-        LUAT_DEBUG_PRINT("Firmware Version: %d", firmwareConfig.firmwareVersion);
-        LUAT_DEBUG_PRINT("Firmware URL: %s", firmwareConfig.firmwareUrl);
-        LUAT_DEBUG_PRINT("Resource URL: %s", firmwareConfig.resourceUrl);
-        LUAT_DEBUG_PRINT("System Mode: %d", firmwareConfig.systemMode);
-        LUAT_DEBUG_PRINT("Pay URL: %s", firmwareConfig.payUrl);
-        LUAT_DEBUG_PRINT("Save Ticket URL: %s", firmwareConfig.saveTicketUrl);
-        LUAT_DEBUG_PRINT("Coin Pulse Width: %d", firmwareConfig.coinPulseWidth);
-        LUAT_DEBUG_PRINT("Ticket Pulse Width: %d", firmwareConfig.ticketPulseWidth);
-        LUAT_DEBUG_PRINT("Coin Pulse Low: %d", firmwareConfig.coinPulseLow);
-        LUAT_DEBUG_PRINT("Coin Pulse High: %d", firmwareConfig.coinPulseHigh);
-        LUAT_DEBUG_PRINT("Ticket Pulse Low: %d", firmwareConfig.ticketPulseLow);
-        LUAT_DEBUG_PRINT("Ticket Pulse High: %d", firmwareConfig.ticketPulseHigh);
-        LUAT_DEBUG_PRINT("Coin Per Play: %d", firmwareConfig.coinPerPlay);
-        LUAT_DEBUG_PRINT("Direction: %d", firmwareConfig.direction);
+        LUAT_DEBUG_PRINT("Firmware Version: %d", config.firmwareVersion);
+        LUAT_DEBUG_PRINT("Firmware URL: %s", config.firmwareUrl);
+        LUAT_DEBUG_PRINT("Resource URL: %s", config.resourceUrl);
+        LUAT_DEBUG_PRINT("System Mode: %d", config.systemMode);
+        LUAT_DEBUG_PRINT("Pay URL: %s", config.payUrl);
+        LUAT_DEBUG_PRINT("Save Ticket URL: %s", config.saveTicketUrl);
+        LUAT_DEBUG_PRINT("Coin Pulse Width: %d", config.coinPulseWidth);
+        LUAT_DEBUG_PRINT("Ticket Pulse Width: %d", config.ticketPulseWidth);
+        LUAT_DEBUG_PRINT("Coin Pulse Low: %d", config.coinPulseLow);
+        LUAT_DEBUG_PRINT("Coin Pulse High: %d", config.coinPulseHigh);
+        LUAT_DEBUG_PRINT("Ticket Pulse Low: %d", config.ticketPulseLow);
+        LUAT_DEBUG_PRINT("Ticket Pulse High: %d", config.ticketPulseHigh);
+        LUAT_DEBUG_PRINT("Coin Per Play: %d", config.coinPerPlay);
+        LUAT_DEBUG_PRINT("Direction: %d", config.direction);
     } else {
         LUAT_DEBUG_PRINT("Failed to parse firmware config.");
     }
@@ -391,7 +503,7 @@ void Testbench()
         .hardwareVersion = 1,
         .firmwareVersion = 1,
         .imei = "123456789012345",
-        .directTicketOut = -50,
+        .ticketDirectOut = -50,
         .signal = 0,
         .pinCoinerInit = 0,
         .pinMbOnoffInit = 0,

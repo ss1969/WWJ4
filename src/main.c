@@ -12,29 +12,16 @@
 #include "sysvars.h"
 #include "wgpio.h"
 #include "usart.h"
+#include "mqtt.h"
+#include "fskv.h"
 
-static luat_rtos_task_handle task_bootup_handle;
+static luat_rtos_task_handle task_main_handle;
 
-extern void uart_taskinit(void);
 extern void cli_taskinit(void);
-extern void gpio_taskinit(void);
-extern void fskv_taskinit(void);
 extern void mobile_taskinit(void);
-extern void mqtt_taskinit(void);
 
-static void boot_main_routine(void *param)
-{
-    while (1)
-    {
-        gpio_toggle(PIN_LED_D0);
-        luat_rtos_task_sleep(1000);
-    }
-    // while (1)
-    // {
-    //     luat_rtos_task_sleep(5 * 1000);
-    //     WDT_kick();
-    // }
-}
+
+#define MAIN_EVENT_OTA  1
 
 void getSystemID(void)
 {
@@ -49,15 +36,14 @@ void getSystemID(void)
     LUAT_DEBUG_PRINT("IMEI: %s", svIMEI);
 }
 
-void task_bootup(void)
+void main_start_ota(void)
 {
- 	/*
-		出现异常后默认为死机重启
-		demo这里设置为 LUAT_DEBUG_FAULT_HANG_RESET 出现异常后尝试上传死机信息给PC工具，上传成功或者超时后重启
-		如果为了方便调试，可以设置为 LUAT_DEBUG_FAULT_HANG ，出现异常后死机不重启
-		但量产出货一定要设置为出现异常重启！！！！！！！！！
-	*/
-    luat_debug_set_fault_mode(LUAT_DEBUG_FAULT_RESET);
+	luat_rtos_event_send(task_main_handle, MAIN_EVENT_OTA, 0, 0, 0, 1000);
+}
+
+static void main_main_routine(void *param)
+{
+    luat_rtos_task_sleep(100);  // LuatOS的bsp有个问题，会错误的init gpio23，所以在task里面等它搞完了我再init
 
     getSystemID();
     uart_taskinit();
@@ -66,8 +52,7 @@ void task_bootup(void)
     mobile_taskinit();
     mqtt_taskinit();
 
-    luat_rtos_task_create(&task_bootup_handle, 2*1024, 1, "task_boot", boot_main_routine, NULL, 0);
-
+    /* info */
     uart_print("BUILD %s %s\n", __DATE__, __TIME__);
 	uart_print("Sys mode %d\n", svDeviceType);
     uart_print("System ID :");
@@ -85,14 +70,54 @@ void task_bootup(void)
         uart_print("%c", svICCID[i]);
     }
     uart_print("\n");
-
     cli_taskinit();
+
+	int ret;
+	luat_event_t event;
+	while(true)
+	{
+		// ret = luat_rtos_event_recv(task_main_handle, 0, &event, NULL, LUAT_WAIT_FOREVER);
+
+        // switch(event.id){
+        //     case MAIN_EVENT_OTA:
+        //         gpio_deinit();
+        //         mqtt_deinit();
+        //         uart_deinit();
+
+        //         extern void ota_taskinit(void);
+        //         // ota_taskinit();
+        //     break;
+
+        //     default:
+        //     break;
+        // }
+
+        gpio_toggle(PIN_LED_D0);
+        luat_rtos_task_sleep(1000);
+    }
+    // while (1)
+    // {
+    //     luat_rtos_task_sleep(5 * 1000);
+    //     WDT_kick();
+    // }
 }
 
-void boot_deinit(void)
+void main_taskinit(void)
 {
-    luat_rtos_task_suspend(task_bootup_handle);
-	luat_rtos_task_delete(task_bootup_handle);
+ 	/*
+		出现异常后默认为死机重启
+		demo这里设置为 LUAT_DEBUG_FAULT_HANG_RESET 出现异常后尝试上传死机信息给PC工具，上传成功或者超时后重启
+		如果为了方便调试，可以设置为 LUAT_DEBUG_FAULT_HANG ，出现异常后死机不重启
+		但量产出货一定要设置为出现异常重启！！！！！！！！！
+	*/
+    luat_debug_set_fault_mode(LUAT_DEBUG_FAULT_RESET);
+    luat_rtos_task_create(&task_main_handle, 2*1024, 1, "task_boot", main_main_routine, NULL, 0);
+}
+
+void main_deinit(void)
+{
+    luat_rtos_task_suspend(task_main_handle);
+	luat_rtos_task_delete(task_main_handle);
 }
 
 void system_halt_for_update(void)
@@ -104,7 +129,7 @@ void system_halt_for_update(void)
 
 	int step = 1;
 	LUAT_DEBUG_PRINT("HALT STEP %d", step++);
-	boot_deinit();
+	main_deinit();
 	LUAT_DEBUG_PRINT("HALT STEP %d", step++);
 	gpio_deinit();
 	LUAT_DEBUG_PRINT("HALT STEP %d", step++);
@@ -117,5 +142,5 @@ void system_halt_for_update(void)
 }
 
 
-INIT_TASK_EXPORT(task_bootup, "0");
+INIT_TASK_EXPORT(main_taskinit, "0");
 

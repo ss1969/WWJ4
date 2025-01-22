@@ -26,11 +26,12 @@ char svSystemID[32] = {0};       /* CHIP ID */
 char svIMEI[20] = {0};           /* IMEI */
 char svIMSI[20] = {0};           /* IMEI */
 char svICCID[24] = {0};          /* ICCID */
+char svPhoneNumber[24] = {0};    /* Number */
 uint8_t svDeviceType;            /* 1 标准，2 代替彩票机 */
-uint8_t svCardDirection;	     /* 刷卡头开口方向, 1开口向上（默认选项），然后是向下，向左，向右 */
+uint8_t svDeviceDirection;	     /* 刷卡头开口方向, 1开口向上（默认选项），然后是向下，向左，向右 */
 uint8_t svDeviceStatus;			 /* 设备状态 0 正常 1 未初始化 2 未绑定 */
-char svUrlWXPay[256];			 /* 微信支付地址 */
-char svUrlOta[256];			     /* 升级包地址 */
+char svUrlWXPay[256] = {0};		 /* 微信支付地址 */
+char svUrlOta[256] = {0};        /* 升级包地址 */
 
 uint8_t svCoinSw2;		         /* 投币脉冲宽度 */
 uint8_t svCoinPulseWidthInLow;	 /* COIN PIN脉冲宽度判断下限 */

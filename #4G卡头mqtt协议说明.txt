@@ -4,48 +4,58 @@
 v1 20150101
 v2 20150105
 v3 20250119
+v4 20250121
+	解绑流程改变，增加retain说明，状态增加手机号，ticketDirectOut统一，数据上传1说明
+	cmd 改说明文字
 
 # 备注
 mqtt qos 除非特别说明，使用 level 1（最少送达1次）
-心跳时间30s，自动重连打开，清理回话true（即broker不保存sub断联时刻消息）
 配置是json，如果没写的配置卡头使用默认值；但是标必备的条目不能漏掉
 
 #0 启动和绑定
-首先设备固件写死一个ip地址用于获取mqtt的链接地址：mqtt://ip:port
-用户名和密码暂时先写死，后期再考虑怎么加强
-绑定流程：
-	未绑定状态：设备直通投币和彩票，但是不进行计数。
-	步骤1：设备通过http post上传序列号、型号以及其他必须数据，然后自行监听对应mqtt topic。
-	步骤2：服务器发布配置信息到对应topic，即完成。设备自动监听后实施。
-	步骤3：服务器发布重置计数器指令，把设备保持的计数器清零。
-	解绑：服务器取消发布config，之后用command请求设备重启。设备启动后，获取不到配置，则认为自己是未绑定状态。
-		 如果服务器端重新发布对应config（无需发布重启命令），设备将会自动获取配置并恢复绑定状态。
+	首先设备固件写死一个ip地址用于获取mqtt的链接地址：mqtt://ip:port
+	用户名和密码暂时先写死，后期再考虑怎么加强
+	绑定流程：
+		未绑定状态：设备直通投币和彩票，但是不进行计数。
+		步骤1：设备通过http post上传序列号、型号以及其他必须数据，然后自行监听对应mqtt topic。
+		步骤2：服务器发布配置信息到对应topic，即完成。设备自动监听后实施。
+		步骤3：服务器发布重置计数器指令，把设备保持的计数器清零。
+		解绑：服务器发布一条空消息，带/device/{deviceID}/config（表示清除消息）
+			 卡头将会收到这条空消息，把自己重置为初始化状态，并重启。
+			 如果服务器端重新发布对应config，设备将会自动获取配置并恢复绑定状态。
 
 #1 卡头配置（服务器发布）
-	1，当配置改变后，如果是可以直接生效的配置，则无需重启，否则自动重启。
-	2，当更新fw版本造成协议有新增字段的时候，服务器可以直接使用新协议。
+	1，当配置改变后，如果是可以直接生效的配置，则无需重启，否则卡头自动重启。
+	2，当更新fw版本造成协议有新增字段的时候，服务器可以直接使用新协议消息覆盖旧的消息。
 	3，客户端首先会忽略掉新增的字段，然后发现fw版本需更新，自动更新重启后，则会自动应用新协议。
-	4，重启后，客户端汇报给服务器的fw版本更新了，服务器即可知道新协议已经生效。
-	5，彩票机是否直接出票，既可以服务器端修改也可以卡头自己修改（通过触屏或开关等），所以config和state都有这个值。
+	4，重启后，客户端汇报给服务器的fw版本更新到服务器版本，服务器即可知道新协议已经生效。
+	5，彩票机是否直接出票，既可以服务器端修改也可以卡头自己修改（通过触屏或开关等），所以config和state都有这个值ticketDirectOut。
 
-/device/{deviceID}/config
-{
-	"fimwareVersion" : 30,						// 必备，数字，卡头发现版本比自己高，则主动升级；同时fw版本和协议版本绑定
-	"fimwareUrl" : "http://www.123.com/fw.bin"	// 必备，固件地址，使用HTTP Basic Auth
-	"resourceUrl" : "http://.."					// 资源包地址，使用HTTP Basic Auth
-	"systemMode" : 1,    						// 必备，1：普通卡头，2：彩票模拟
-	"payUrl" : "http://",						// 扫码=投币 url
-	"saveTicketUrl" : "http://xxxxx",			// 模式2，或者不用url，如果是小程序扫码，是否可以只放一个标志？
-	"coinPulseWidth" ： 40,						// 投币器脉冲宽度 20到100，默认40
-	"ticketPulseWidth" : 80, 					// 模拟彩票机脉冲宽度，仅模式2
-	"coinPulseLow" : 15,     				    // 投币识别脉冲最低值
-	"coinPulseHigh" : 105,    					// 投币识别脉冲最高值
-	"ticketPulseLow" : 15,    					// 出奖脉冲最低值，仅模式1，因为模式2只看edge
-	"ticketPulseHigh" : 105,  					// 出奖脉冲最低值，仅模式1
-	"coinPerPlay" : 1,							// 按一次投币投几个，备用
-	"direction" : 2,           		        	// 1\2\3\4 左上右下，备用
-	"ticketDirectOut" : 1,  					// 设定直接出票1还是模拟出票0，仅模式2
-}
+	标题：
+	/device/{deviceID}/config
+
+	参数：
+	retain：true，即卡头不管什么时候上线都能收到这个消息并处理。
+
+	格式：
+	{
+		"fimwareVersion" : 30,						// 必备，数字，卡头发现版本比自己高，则主动升级；同时fw版本和协议版本绑定
+		"fimwareUrl" : "http://www.123.com/fw.bin"	// 必备，固件地址，使用HTTP Basic Auth
+		"resourceUrl" : "http://.."					// 资源包地址，使用HTTP Basic Auth
+		"systemMode" : 1,    						// 必备，1：普通卡头，2：彩票模拟
+		"payUrl" : "http://",						// 扫码=投币 url
+		"saveTicketUrl" : "http://xxxxx",			// 模式2，或者不用url，如果是小程序扫码，是否可以只放一个标志？
+		"coinPulseWidth" ： 40,						// 投币器脉冲宽度 20到100，默认40
+		"ticketPulseWidth" : 80, 					// 模拟彩票机脉冲宽度，仅模式2
+		"coinPulseLow" : 15,     				    // 投币识别脉冲最低值
+		"coinPulseHigh" : 105,    					// 投币识别脉冲最高值
+		"ticketPulseLow" : 15,    					// 出奖脉冲最低值，仅模式1，因为模式2只看edge
+		"ticketPulseHigh" : 105,  					// 出奖脉冲最低值，仅模式1
+		"coinPerPlay" : 1,							// 按一次投币投几个，备用
+		"direction" : 2,           		        	// 1\2\3\4 左上右下，备用
+		"ticketDirectOut" : 1,  					// 设定直接出票1还是模拟出票0，仅模式2
+	}
+
 
 #2 卡头命令，服务器发布
 	1，命令必须是单线程的，必须上一个命令有了结果后再执行下一个。结果可能是正确执行了，也可能是超时放弃了。
@@ -54,55 +64,86 @@ mqtt qos 除非特别说明，使用 level 1（最少送达1次）
 	4，服务器超时时间内没有获取到state变化，可以认为客户端故障；连续多次后可认为掉线通知维护。
 	5，如果成功，此时服务器可以继续发布下一个命令，timestamp必须更改。
 	6，服务器取消发布之后重新发布timestamp一样的命令，并不能被视为重发一个命令。
-！！注意，以上设计机制不确定连续投币实际效果如何，需要实测！！
+	《------待确认 以上设计机制不确定连续投币实际效果如何，需要实测-------》
 
-/device/{deviceID}/command
-{
-	"timeStamp" : 0xABCDEF00ABCDEF00,	// 必备，服务器写入，客户端用于区分命令避免执行2次。
-	"commandId" : 1						// 必备，1 投币, 2 计数器清零, 3 改变出票设置,99 重启
-	"commandParam" : "",				// cmd == 1 => 投币个数
-										// cmd == 3 => 设1表示模拟出票，0表示正常出票
-										// 如其他命令有其他参数，在此继续增加。
-}
+	标题：
+	/device/{deviceID}/command
+
+	参数：
+	retain：false，即只有卡头在线才能处理这个命令
+
+	内容：
+	{
+		"timeStamp" : "0xABCDEF00ABCDEF00",	// 必备，服务器写入，客户端用于区分命令避免执行2次。
+		"commandId" : 1						// 必备，1 投币, 2 计数器清零, 3 改变出票设置,99 重启
+		"commandParam" : "",				// cmd == 1 => 投币个数
+											// cmd == 3 => 设1表示模拟出票，0表示正常出票
+											// 如其他命令有其他参数，在此继续增加。
+											// 注意除了id，timestamp和param都是string
+											// 参数最大长度128byte
+	}
 
 
-#3 数据上传（客户端发布，服务器使用通配符订阅 /device/+/state 等 ）
-	1，启动会发布一次，之后应该只有signal和error和directTicketOut变化才会发布。
-/device/{deviceID}/state
-{
-	"timeStamp" : 0xABCDEF00ABCDEF00,	// 必备，64位tick，hex格式，服务器用于统计数据去重
-	"hardwareVersion" : 1,				// 必备
-	"firmwareVersion" : 1,				// 必备
-	"imei": "123414123123123123123",    // IMEI，一定会有，因为无卡就没数据连接了
-	"imsi": "123414123123123123123",    // IMSI，一定会有，因为无卡就没数据连接了
-	"iccid": "123414123123123123123",   // ICCID，一定会有，因为无卡就没数据连接了
-	"directTicketOut" : 0,				// 模式2下必备，当前是直接出票0 还是 模拟出票模式1
-	"signal": -50,						// 4G 信号强度
-	"pinCoinerInit" : 0,				// 投币器输出信号读取值
-	"pinMbOnoffInit": 0,				// 主板彩票开关信号读取值
-	"pinExtCountInit" : 0,				// 彩票机计数信号读取值
-	"errorCode" : 0,					// 0 正常，1 hack detected，2 .... 待定
-}
+#3 数据上传1（客户端发布，服务器使用通配符订阅 /device/+/state 等 ）
+	1，MQTT CONNECT后会发布一次，之后应该只有 signal、error、ticketDirectOut 变化才会发布。
+	2，如果卡出现问题，则设备无法收到掉线信息（因为网络没了），但能收到新的上线信息
+
+	标题：
+	/device/{deviceID}/state
+
+	参数：
+	retain：true，即数据库服务器随时可以获得卡头的最后状态
+
+	内容：
+	{
+		"timeStamp" : 0xABCDEF00ABCDEF00,	// 必备，64位tick，hex格式，服务器用于统计数据去重
+		"hardwareVersion" : 1,				// 必备
+		"firmwareVersion" : 1,				// 必备
+		"imei": "123414123123123123123",    // IMEI，一定会有，因为无卡就没数据连接了
+		"imsi": "123414123123123123123",    // IMSI，一定会有，因为无卡就没数据连接了
+		"iccid": "123414123123123123123",   // ICCID，一定会有，因为无卡就没数据连接了
+		"phone": "13300002323",             // 电话号码
+		"ticketDirectOut" : 0,				// 模式2下必备，当前是直接出票0 还是 模拟出票模式1
+		"signal": -50,						// 4G 信号强度
+		"pinCoinerInit" : 0,				// 投币器输出信号读取值
+		"pinMbOnoffInit": 0,				// 主板彩票开关信号读取值
+		"pinExtCountInit" : 0,				// 彩票机计数信号读取值
+		"errorCode" : 0,					// 0 正常，1 hack detected，2 .... 《------待确认 -------》
+	}
+
 
 #4 数据上传2
-Wantout和Realout差距，是因为彩票机没票造成的。
+	Wantout和Realout差距，是因为彩票机没票造成的。
 
-/device/{deviceID}/data
-{
-	"timeStamp" : 0xABCDEF00ABCDEF00	// 64位tick，hex格式，服务器用于数据去重
-	"lastCommandTS" : 0xABCDEF00ABCDEF00, // 如果客户端执行了之前的某个命令，将把其Timestamp填在这里以提示服务器端。此时服务器端即可停止发布。如果之前没有执行则此处为空。
-	"coin" : 12345,						// 上次清零以来 硬件投币器的收币计数。
-	"prize" : 12345,					// 上次清零以来 出奖计数，仅模式1。
-	"ticketWantOut": 12345,			    // 上次清零以来 想要真实出票，仅模式2。
-	"ticketRealOut" : 12345,			// 上次清零以来 实际真实出票，仅模式2;
-	"ticketEmulated": 12345,			// 上次清零以来 实际模拟出票，仅模式2。
-}
+	标题：
+	/device/{deviceID}/data
+
+	参数：
+	retain：true，即数据库服务器只要上线就能获得1次卡头的最终数据，甚至不必再做持久存储。
+	《------待确认-------》
+
+	格式：
+	{
+		"timeStamp" : 0xABCDEF00ABCDEF00	// 64位tick，hex格式，服务器用于数据去重
+		"lastCommandTS" : 0xABCDEF00ABCDEF00, // 如果客户端执行了之前的某个命令，将把其Timestamp填在这里以提示服务器端。此时服务器端即可停止发布。如果之前没有执行则此处为空。
+		"coin" : 12345,						// 上次清零以来 硬件投币器的收币计数。
+		"prize" : 12345,					// 上次清零以来 出奖计数，仅模式1。
+		"ticketWantOut": 12345,			    // 上次清零以来 想要真实出票，仅模式2。
+		"ticketRealOut" : 12345,			// 上次清零以来 实际真实出票，仅模式2;
+		"ticketEmulated": 12345,			// 上次清零以来 实际模拟出票，仅模式2。
+	}
+
 
 #5 数据上传3
-收到短信
-/device/{deviceID}/sms
-{
-	"time" : "25/01/19,20:27:24 +32",
-	"phone" : "13300323323",
-	"PDU" : "内容" 
-}
+	标题：
+	/device/{deviceID}/sms
+
+	参数：
+	retain：false，即如果数据库服务器不在线，将错过sms信息。
+
+	格式：
+	{
+		"time" : "25/01/19,20:27:24 +32",
+		"phone" : "13300323323",			// 发送方电话，可能比较长
+		"PDU" : "\u1234\u1234" 				// UTF字符串
+	}

@@ -59,6 +59,8 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
 				LUAT_DEBUG_PRINT("IMSI: %s", svIMSI);
 				luat_mobile_get_iccid(0, svICCID, sizeof(svICCID));
 				LUAT_DEBUG_PRINT("ICCID: %s", svICCID);
+				luat_mobile_get_sim_number(0, svPhoneNumber, sizeof(svPhoneNumber));
+				LUAT_DEBUG_PRINT("Phone: %s", svPhoneNumber);
                 luat_mobile_get_plmn_from_imsi(svIMSI, &mcc, &mnc);
 				LUAT_DEBUG_PRINT("MCC: %d, MNC %d", mcc, mnc);
                 result = luat_mobile_get_isp_from_plmn(mcc, mnc);

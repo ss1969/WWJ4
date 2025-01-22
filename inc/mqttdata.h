@@ -25,7 +25,7 @@ typedef struct {
 typedef struct {
     uint64_t timeStamp;
     int commandId;
-    char commandParam[100];
+    char commandParam[128];
 } Command;
 
 typedef struct {
@@ -34,7 +34,8 @@ typedef struct {
     char imei[20];
     char imsi[20];
     char iccid[24];
-    int directTicketOut;
+    char phone[24];
+    int ticketDirectOut;
     int signal;
     int pinCoinerInit;
     int pinMbOnoffInit;
