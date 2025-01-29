@@ -19,6 +19,7 @@ static luat_rtos_task_handle task_main_handle;
 
 extern void cli_taskinit(void);
 extern void mobile_taskinit(void);
+extern void lcd_taskinit(void);
 
 
 #define MAIN_EVENT_OTA  1
@@ -51,6 +52,7 @@ static void main_main_routine(void *param)
     gpio_taskinit();
     mobile_taskinit();
     mqtt_taskinit();
+    lcd_taskinit();
 
     /* info */
     uart_print("BUILD %s %s\n", __DATE__, __TIME__);

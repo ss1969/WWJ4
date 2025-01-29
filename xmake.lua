@@ -48,7 +48,10 @@ target(project_name,function()
     add_includedirs(luatos_root.."/components/network/libemqtt", {public = true})
     add_files(luatos_root.."/components/network/libemqtt/*.c")
     remove_files(luatos_root.."/components/network/libemqtt/luat_lib_mqtt.c")
-
-
+    --lcd
+    add_includedirs(luatos_root.."/components/u8g2", {public = true})
+    add_includedirs(luatos_root.."/components/lcd", {public = true})
+    add_files(luatos_root.."/components/lcd/*.c")
+    remove_files(luatos_root.."/components/lcd/luat_lib_lcd.c")
 
 end)

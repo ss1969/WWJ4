@@ -56,7 +56,9 @@
         "mqttdata.h": "c",
         "memory_resource": "c",
         "random": "c",
-        "tecontrol.h": "c"
+        "tecontrol.h": "c",
+        "luat_lcd.h": "c",
+        "luat_spi.h": "c"
     },
     "files.autoSave": "onFocusChange"
 }

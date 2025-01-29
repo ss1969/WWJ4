@@ -1,0 +1,42 @@
+
+D:\Projects\WWJ780EP\Source\out\Source_ec718p.soc
+
+MQTT测试数据
+
+1， /device/4e453432310f212845ff/config
+
+{
+    "firmwareVersion": 30,
+    "firmwareUrl": "http://www.123.com/fw.bin",
+    "resourceUrl": "http://..",
+    "systemMode": 1,
+    "payUrl": "http://",
+    "saveTicketUrl": "http://xxxxx",
+    "coinPulseWidth": 40,
+    "ticketPulseWidth": 80,
+    "coinPulseLow": 15,
+    "coinPulseHigh": 105,
+    "ticketPulseLow": 15,
+    "ticketPulseHigh": 105,
+    "coinPerPlay": 1,
+    "direction": 2
+}
+
+测试投币 1
+/device/4e453432310f212845ff/command
+{
+    "timeStamp" : 0xABCDEF00ABCDEF00, 
+    "commandId" : 1
+    "commandParam" : "1",
+}
+
+待测：
+1，ota
+2，清空是否正常解绑
+3，取电话号码
+
+场地测试：
+1，投币器投币
+2，软件投币
+3，直出模式，是否游戏机多少票，实际出多少票，且计数正确
+4，非直出模式，是否游戏机多少票，模拟多少票，且计数正确
