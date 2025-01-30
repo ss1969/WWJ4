@@ -16,13 +16,12 @@
 #include "tecontrol.h"
 
 /********************** FOR PUBLISH **********************/
-#define MQTT_PUB_QOS		        1
-#define MQTT_PUB_TOPIC_STATUS       "/device/%s/state"
-#define MQTT_PUB_TOPIC_COUNTER      "/device/%s/data"
-#define MQTT_PUB_TOPIC_SMS          "/device/%s/sms"
+#define MQTT_PUB_QOS           1
+#define MQTT_PUB_TOPIC_STATUS  "/device/%s/state"
+#define MQTT_PUB_TOPIC_COUNTER "/device/%s/data"
+#define MQTT_PUB_TOPIC_SMS     "/device/%s/sms"
 
-static char * status2Json(StatusReport *report)
-{
+static char *status2Json(StatusReport *report) {
     cJSON *jsonObj = cJSON_CreateObject();
 
     char timeStampStr[20] = {0};
@@ -46,8 +45,7 @@ static char * status2Json(StatusReport *report)
     return jsonOut;
 }
 
-static char * counters2Json(CounterReport *report)
-{
+static char *counters2Json(CounterReport *report) {
     cJSON *jsonObj = cJSON_CreateObject();
 
     char timeStampStr[20] = {0};
@@ -65,8 +63,7 @@ static char * counters2Json(CounterReport *report)
     return jsonOut;
 }
 
-static char * sms2Json(char* time, char* phone, char* pdu)
-{
+static char *sms2Json(char *time, char *phone, char *pdu) {
     cJSON *jsonObj = cJSON_CreateObject();
 
     cJSON_AddStringToObject(jsonObj, "time", time);
@@ -78,8 +75,7 @@ static char * sms2Json(char* time, char* phone, char* pdu)
     return jsonOut;
 }
 
-void mqtt_pub_status(void)
-{
+void mqtt_pub_status(void) {
     StatusReport sts;
 
     sts.hardwareVersion = HARDWARE_VERSION;
@@ -89,43 +85,41 @@ void mqtt_pub_status(void)
     strcpy(sts.iccid, svICCID);
     strcpy(sts.phone, svPhoneNumber);
     sts.ticketDirectOut = svTicketDirectOut;
-    sts.signal = svSignal;
-    sts.pinCoinerInit = 0; //k
-    sts.pinMbOnoffInit = 0;//k
-    sts.pinExtCountInit = 0;//k
-    sts.errorCode = 0;//k
+    sts.signal          = svSignal;
+    sts.pinCoinerInit   = 0; // k
+    sts.pinMbOnoffInit  = 0; // k
+    sts.pinExtCountInit = 0; // k
+    sts.errorCode       = 0; // k
 
     char *json = status2Json(&sts);
-    if(json) {
+    if (json) {
         char topic[64] = {0};
         sprintf(topic, MQTT_PUB_TOPIC_STATUS, svSystemID);
         mqtt_publish_data(topic, json, MQTT_PUB_QOS);
     }
 }
 
-void mqtt_pub_counter(void)
-{
+void mqtt_pub_counter(void) {
     CounterReport cnt;
 
     strcpy(cnt.lastCommandTS, svLastCommandExecuted);
-    cnt.coin = svCounterC;
-    cnt.prize = svCounterD;
-    cnt.ticketWantOut = svCounterW;
-    cnt.ticketRealOut = svCounterR;
+    cnt.coin           = svCounterC;
+    cnt.prize          = svCounterD;
+    cnt.ticketWantOut  = svCounterW;
+    cnt.ticketRealOut  = svCounterR;
     cnt.ticketEmulated = svCounterE;
 
     char *json = counters2Json(&cnt);
-    if(json) {
+    if (json) {
         char topic[64];
         sprintf(topic, MQTT_PUB_TOPIC_COUNTER, svSystemID);
         mqtt_publish_data(topic, json, MQTT_PUB_QOS);
     }
 }
 
-void mqtt_pub_sms(char* time, char* phone, char* pdu)
-{
+void mqtt_pub_sms(char *time, char *phone, char *pdu) {
     char *json = sms2Json(time, phone, pdu);
-    if(json) {
+    if (json) {
         char topic[64];
         sprintf(topic, MQTT_PUB_TOPIC_SMS, svSystemID);
         mqtt_publish_data(topic, json, MQTT_PUB_QOS);
@@ -133,16 +127,15 @@ void mqtt_pub_sms(char* time, char* phone, char* pdu)
 }
 
 /********************** FOR SUBSCRIBE **********************/
-enum _MQTT_COMMAND_IDS{
-    MQTT_CMD_INSERTCOIN = 1,
-    MQTT_CMD_RESETCOUNTER = 2,
+enum _MQTT_COMMAND_IDS {
+    MQTT_CMD_INSERTCOIN    = 1,
+    MQTT_CMD_RESETCOUNTER  = 2,
     MQTT_CMD_DIRECTOUTMODE = 3,
-    MQTT_CMD_REBOOT = 99,
-}MQTT_COMMAND_IDS;
+    MQTT_CMD_REBOOT        = 99,
+} MQTT_COMMAND_IDS;
 
 /* Mqtt的json数据和配置结构体来回转换 */
-static int json2Config(char *jsonIn, MqttConfig *config)
-{
+static int json2Config(char *jsonIn, MqttConfig *config) {
     // LUAT_DEBUG_PRINT("json2Config: %s", jsonIn);
 
     cJSON *json = cJSON_Parse(jsonIn);
@@ -269,8 +262,7 @@ static int json2Config(char *jsonIn, MqttConfig *config)
     return 0;
 }
 
-static int json2Command(char *jsonIn, Command *cmd)
-{
+static int json2Command(char *jsonIn, Command *cmd) {
     cJSON *json = cJSON_Parse(jsonIn);
     if (!json) {
         LUAT_DEBUG_PRINT("JSON parse error: %s", cJSON_GetErrorPtr());
@@ -283,7 +275,7 @@ static int json2Command(char *jsonIn, Command *cmd)
         cJSON_Delete(json);
         return -1;
     }
-    errno = 0;
+    errno          = 0;
     cmd->timeStamp = strtoull(item->valuestring, NULL, 16);
     if (errno != 0) {
         LUAT_DEBUG_PRINT("Error: Invalid 'timeStamp' format or out of range.");
@@ -311,10 +303,9 @@ static int json2Command(char *jsonIn, Command *cmd)
     return 0;
 }
 
-void mqtt_data_cb_config(char* data, uint32_t len)
-{
+void mqtt_data_cb_config(char *data, uint32_t len) {
     /* 检查是不是一个broker清除retain message的操作 */
-    if(len == 0){
+    if (len == 0) {
         LUAT_DEBUG_PRINT("收到空config，这是一个解绑操作");
         /* 这是一个解绑操作 */
         fskv_reset_data();
@@ -326,10 +317,9 @@ void mqtt_data_cb_config(char* data, uint32_t len)
     }
 
     /* 正常命令 */
-    bool needReboot = false;
+    bool       needReboot = false;
     MqttConfig config;
-    if(json2Config(data, &config) != 0)
-    {
+    if (json2Config(data, &config) != 0) {
         LUAT_DEBUG_PRINT("mqtt_data_cb_config() ERROR!!!! ");
         return;
     }
@@ -353,89 +343,94 @@ void mqtt_data_cb_config(char* data, uint32_t len)
     LUAT_DEBUG_PRINT("TicketDirectOut: %d", config.ticketDirectOut);
 
     // 需要重启的
-    if(config.systemMode != svDeviceType){
+    if (config.systemMode != svDeviceType) {
         fskv_save_async(FSKV_EVT_DEV_TYPE, config.systemMode);
         needReboot = true;
     }
-    if(svCoinSw2 != config.coinPulseWidth){
+    if (svCoinSw2 != config.coinPulseWidth) {
         fskv_save_async(FSKV_EVT_COINER_SW2, config.coinPulseWidth);
         needReboot = true;
     }
 
     // 不需要重启的
-    fskv_save_async(FSKV_EVT_TE_PULSE, config.ticketPulseWidth); svTEpulse = config.ticketPulseWidth;
-    fskv_save_async(FSKV_EVT_COIN_IN_LOW, config.coinPulseLow); svCoinPulseWidthInLow = config.coinPulseLow;
-    fskv_save_async(FSKV_EVT_COIN_IN_HIGH, config.coinPulseHigh); svCoinPulseWidthInHigh = config.coinPulseHigh;
-    fskv_save_async(FSKV_EVT_TICKET_IN_LOW, config.ticketPulseLow); svPrizePulseWidthInLow = config.ticketPulseLow;
-    fskv_save_async(FSKV_EVT_TICKET_IN_HIGH, config.ticketPulseHigh); svPrizePulseWidthInHigh = config.ticketPulseHigh;
-    fskv_save_async(FSKV_EVT_COIN_PERPLAY_BTN1, config.coinPerPlay); svCoinPerPlay = config.coinPerPlay;
+    fskv_save_async(FSKV_EVT_TE_PULSE, config.ticketPulseWidth);
+    svTEpulse = config.ticketPulseWidth;
+    fskv_save_async(FSKV_EVT_COIN_IN_LOW, config.coinPulseLow);
+    svCoinPulseWidthInLow = config.coinPulseLow;
+    fskv_save_async(FSKV_EVT_COIN_IN_HIGH, config.coinPulseHigh);
+    svCoinPulseWidthInHigh = config.coinPulseHigh;
+    fskv_save_async(FSKV_EVT_TICKET_IN_LOW, config.ticketPulseLow);
+    svPrizePulseWidthInLow = config.ticketPulseLow;
+    fskv_save_async(FSKV_EVT_TICKET_IN_HIGH, config.ticketPulseHigh);
+    svPrizePulseWidthInHigh = config.ticketPulseHigh;
+    fskv_save_async(FSKV_EVT_COIN_PERPLAY_BTN1, config.coinPerPlay);
+    svCoinPerPlay = config.coinPerPlay;
     // fskv_save_async(FSKV_EVT_COIN_PERPLAY_BTN2, config.coinPerPlay2);
-    fskv_save_async(FSKV_EVT_DEV_SCREEN_DIR, config.direction); svDeviceDirection = config.direction;
+    fskv_save_async(FSKV_EVT_DEV_SCREEN_DIR, config.direction);
+    svDeviceDirection = config.direction;
 
     te_set_direct_out(config.ticketDirectOut);
 
-    // 如果 升级则直接重启了
-    if(config.firmwareVersion > SOFTWARE_VERSION){
-        //initialize OTA
+    // 如果版本更高则升级
+    // 需要排除https开头，因为现在https开头的直接要挂
+    if (config.firmwareVersion > SOFTWARE_VERSION && memcmp(config.firmwareUrl, "http://", 7) == 0) {
+        // initialize OTA
         LUAT_DEBUG_PRINT("Start OTA: new version %d", config.firmwareVersion);
-        extern void ota_taskinit(const char * firmware_url);
         gpio_deinit();
         mqtt_deinit();
-        LUAT_DEBUG_PRINT("11111");
+        extern void ota_taskinit(const char *firmware_url);
         ota_taskinit(config.firmwareUrl);
         return;
     }
+    else {
+        LUAT_DEBUG_PRINT("new firmware version: %d, address: %s", config.firmwareVersion, config.firmwareUrl);
+        LUAT_DEBUG_PRINT("WILL NOT SOTA, quit!");
+    }
 
     // 重启
-    if(needReboot){
+    if (needReboot) {
         LUAT_DEBUG_PRINT("REBOOT required!");
         luat_rtos_task_sleep(1000);
         luat_os_reboot(0);
     }
 }
 
-void mqtt_data_cb_command(char* data, uint32_t len)
-{
-    if(len == 0)
+void mqtt_data_cb_command(char *data, uint32_t len) {
+    if (len == 0)
         return;
 
     Command cmd;
 
-    if(json2Command(data, &cmd) != 0){
+    if (json2Command(data, &cmd) != 0) {
         LUAT_DEBUG_PRINT("Mqtt_DataCallbackCommand() ERROR!!!! ");
         return;
     }
 
-    switch(cmd.commandId){
-        case MQTT_CMD_INSERTCOIN:{
+    switch (cmd.commandId) {
+        case MQTT_CMD_INSERTCOIN: {
             int coin = strtoul(cmd.commandParam, NULL, 16);
             strcpy(svLastCommandExecuted, cmd.timeStamp);
             gpio_outCoin(coin);
-        }
-        break;
-        case MQTT_CMD_RESETCOUNTER:{
+        } break;
+        case MQTT_CMD_RESETCOUNTER: {
             strcpy(svLastCommandExecuted, cmd.timeStamp);
-            //k
-        }
-        break;
-        case MQTT_CMD_DIRECTOUTMODE:{
+            // k
+        } break;
+        case MQTT_CMD_DIRECTOUTMODE: {
             int mode = strtoul(cmd.commandParam, NULL, 16);
             strcpy(svLastCommandExecuted, cmd.timeStamp);
             te_set_direct_out(mode ? 1 : 0);
-        }
-        break;
-        case MQTT_CMD_REBOOT:{
+        } break;
+        case MQTT_CMD_REBOOT: {
             strcpy(svLastCommandExecuted, cmd.timeStamp);
             LUAT_DEBUG_PRINT("Reboot required!");
-	        luat_os_reboot(0);
-        }
-        break;
+            luat_os_reboot(0);
+        } break;
     }
 }
 
 /* clear json ptr */
-void mqtt_data_free(void *obj)
-{
+void mqtt_data_free(void *obj) {
     cJSON_free(obj);
 }
 

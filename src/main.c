@@ -21,13 +21,11 @@ extern void cli_taskinit(void);
 extern void mobile_taskinit(void);
 extern void lcd_taskinit(void);
 
-
-void getSystemID(void)
-{
-    extern const char* luat_mcu_unique_id(size_t* t);
-    size_t len;
-    char *id = luat_mcu_unique_id(&len);
-    for(int i = 0; i<len; i++){
+void getSystemID(void) {
+    extern const char *luat_mcu_unique_id(size_t *t);
+    size_t             len;
+    char              *id = luat_mcu_unique_id(&len);
+    for (int i = 0; i < len; i++) {
         sprintf(svSystemID + i * 2, "%02x", id[i]);
     }
 
@@ -35,10 +33,7 @@ void getSystemID(void)
     LUAT_DEBUG_PRINT("IMEI: %s", svIMEI);
 }
 
-static void main_main_routine(void *param)
-{
-    luat_rtos_task_sleep(100);  // LuatOS的bsp有个问题，会错误的init gpio23，所以在task里面等它搞完了我再init
-
+static void main_main_routine(void *param) {
     getSystemID();
     uart_taskinit();
     fskv_taskinit();
@@ -49,29 +44,28 @@ static void main_main_routine(void *param)
 
     /* info */
     uart_print("BUILD %s %s\n", __DATE__, __TIME__);
-	uart_print("Sys mode %d\n", svDeviceType);
+    uart_print("Sys mode %d\n", svDeviceType);
     uart_print("System ID :");
-    for(int i = 0; i<strlen(svSystemID); i++){
+    for (int i = 0; i < strlen(svSystemID); i++) {
         uart_print("%c", svSystemID[i]);
     }
     uart_print("\n");
     uart_print("IMEI :");
-    for(int i = 0; i<strlen(svIMEI); i++){
+    for (int i = 0; i < strlen(svIMEI); i++) {
         uart_print("%c", svIMEI[i]);
     }
     uart_print("\n");
     uart_print("ICCID :");
-    for(int i = 0; i<strlen(svICCID); i++){
+    for (int i = 0; i < strlen(svICCID); i++) {
         uart_print("%c", svICCID[i]);
     }
     uart_print("\n");
     cli_taskinit();
 
-	int ret;
-	luat_event_t event;
-	while(true)
-	{
-		// ret = luat_rtos_event_recv(task_main_handle, 0, &event, NULL, LUAT_WAIT_FOREVER);
+    int          ret;
+    luat_event_t event;
+    while (true) {
+        // ret = luat_rtos_event_recv(task_main_handle, 0, &event, NULL, LUAT_WAIT_FOREVER);
 
         // switch(event.id){
         //     case MAIN_EVENT_OTA:
@@ -94,45 +88,40 @@ static void main_main_routine(void *param)
     // }
 }
 
-void main_taskinit(void)
-{
- 	/*
-		出现异常后默认为死机重启
-		demo这里设置为 LUAT_DEBUG_FAULT_HANG_RESET 出现异常后尝试上传死机信息给PC工具，上传成功或者超时后重启
-		如果为了方便调试，可以设置为 LUAT_DEBUG_FAULT_HANG ，出现异常后死机不重启
-		但量产出货一定要设置为出现异常重启！！！！！！！！！
-	*/
+void main_taskinit(void) {
+    /*
+            出现异常后默认为死机重启
+            demo这里设置为 LUAT_DEBUG_FAULT_HANG_RESET 出现异常后尝试上传死机信息给PC工具，上传成功或者超时后重启
+            如果为了方便调试，可以设置为 LUAT_DEBUG_FAULT_HANG ，出现异常后死机不重启
+            但量产出货一定要设置为出现异常重启！！！！！！！！！
+    */
     luat_debug_set_fault_mode(LUAT_DEBUG_FAULT_RESET);
-    luat_rtos_task_create(&task_main_handle, 2*1024, 1, "task_boot", main_main_routine, NULL, 0);
+    luat_rtos_task_create(&task_main_handle, 2 * 1024, 1, "task_boot", main_main_routine, NULL, 0);
 }
 
-void main_deinit(void)
-{
+void main_deinit(void) {
     luat_rtos_task_suspend(task_main_handle);
-	luat_rtos_task_delete(task_main_handle);
+    luat_rtos_task_delete(task_main_handle);
 }
 
-void system_halt_for_update(void)
-{
-	extern void cli_deinit(void);
-	extern void uart_deinit(void);
-	extern void gpio_deinit(void);
-	extern void fskv_deinit(void);
+void system_halt_for_update(void) {
+    extern void cli_deinit(void);
+    extern void uart_deinit(void);
+    extern void gpio_deinit(void);
+    extern void fskv_deinit(void);
 
-	int step = 1;
-	LUAT_DEBUG_PRINT("HALT STEP %d", step++);
-	main_deinit();
-	LUAT_DEBUG_PRINT("HALT STEP %d", step++);
-	gpio_deinit();
-	LUAT_DEBUG_PRINT("HALT STEP %d", step++);
-	fskv_deinit();
-	LUAT_DEBUG_PRINT("HALT STEP %d", step++);
-	uart_deinit();
-	LUAT_DEBUG_PRINT("HALT STEP %d", step++);
-	cli_deinit();
-	LUAT_DEBUG_PRINT("HALT STEP %d", step++);
+    int step = 1;
+    LUAT_DEBUG_PRINT("HALT STEP %d", step++);
+    main_deinit();
+    LUAT_DEBUG_PRINT("HALT STEP %d", step++);
+    gpio_deinit();
+    LUAT_DEBUG_PRINT("HALT STEP %d", step++);
+    fskv_deinit();
+    LUAT_DEBUG_PRINT("HALT STEP %d", step++);
+    uart_deinit();
+    LUAT_DEBUG_PRINT("HALT STEP %d", step++);
+    cli_deinit();
+    LUAT_DEBUG_PRINT("HALT STEP %d", step++);
 }
-
 
 INIT_TASK_EXPORT(main_taskinit, "0");
-

@@ -6,10 +6,10 @@
 #include "wrapper.h"
 
 /* General Configs */
-#define SYSTEM_NAME			"WWJ-780EP"
-#define SOFTWARE_VERSION	1
-#define HARDWARE_VERSION 	4
-#define CONFIG_HACK_GAP_MIN		75
+#define SYSTEM_NAME "WWJ-780EP"
+#define SOFTWARE_VERSION 1
+#define HARDWARE_VERSION 4
+#define CONFIG_HACK_GAP_MIN 75
 
 /* vars 计数器 */
 extern volatile uint32_t svCounterC;
@@ -29,7 +29,7 @@ extern uint32_t svErrorFlag;
 extern uint32_t svErrorCount;
 extern char svServerConnected;
 extern short svPing;
-extern char svLastCommandExecuted[32];  //k 未处理
+extern char svLastCommandExecuted[32]; // k 未处理
 
 /* vars 系统设置信息 */
 extern char svSystemID[32];
@@ -41,9 +41,10 @@ extern uint8_t svDeviceType;
 extern uint8_t svDeviceDirection;
 extern uint8_t svDeviceStatus;
 extern char svUrlWXPay[256];
+extern char *svHttpServer;
 
 extern uint8_t svCoinSw2;
-extern uint8_t svCoinPulseWidthInLow ;
+extern uint8_t svCoinPulseWidthInLow;
 extern uint8_t svCoinPulseWidthInHigh;
 extern uint8_t svPrizePulseWidthInLow;
 extern uint8_t svPrizePulseWidthInHigh;

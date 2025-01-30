@@ -58,7 +58,10 @@
         "random": "c",
         "tecontrol.h": "c",
         "luat_lcd.h": "c",
-        "luat_spi.h": "c"
+        "luat_spi.h": "c",
+        "networkmgr.h": "c",
+        "luat_http.h": "c",
+        "http.h": "c"
     },
     "files.autoSave": "onFocusChange"
 }
