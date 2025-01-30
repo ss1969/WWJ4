@@ -96,10 +96,12 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event)
     switch (event) {
 		case MQTT_MSG_CONNACK: {
 			LUAT_DEBUG_PRINT("MQTT connected successfully.");
+			// 订阅
 			for(int i = 0; i < MQTT_SUB_ACTIONS_DEF_COUNT; i++){
 				mqtt_subscribe(&ctrl->broker, MQTT_SUB_ACTIONS[i].topicString, &msgId, MQTT_SUB_ACTIONS[i].qosLevel);
 				LUAT_DEBUG_PRINT("Subscribing to topic: %s, msgID %d", MQTT_SUB_ACTIONS[i].topicString, msgId);
 			}
+			// 连接后的主动发布
 			for (int i = 0; i < sizeof(MQTT_PUB_AFTERCONNECT) / sizeof(MQTT_PUB_AFTERCONNECT[0]); i++) {
 				MQTT_PUB_AFTERCONNECT[i]();
 			}
@@ -110,7 +112,7 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event)
 			const char* ptrTopic, *ptrData = NULL;
 			uint16_t topicLen = mqtt_parse_pub_topic_ptr(ctrl->mqtt_packet_buffer, &ptrTopic);
 			uint32_t payloadLen = mqtt_parse_pub_msg_ptr(ctrl->mqtt_packet_buffer, &ptrData);
-			LUAT_DEBUG_PRINT("MQTT_MSG_PUBLISH ----------> %d payload", payloadLen);
+			// LUAT_DEBUG_PRINT("MQTT_MSG_PUBLISH ----------> %d payload", payloadLen);
 
 			for(int i = 0; i < MQTT_SUB_ACTIONS_DEF_COUNT; i++){
 				if(memcmp(ptrTopic, MQTT_SUB_ACTIONS[i].topicString, topicLen) == 0){	// topic相符则调用 DataHandler
@@ -166,7 +168,7 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event)
 			break;
 		}
 		default:
-			LUAT_DEBUG_PRINT("Unhandled MQTT event: %s 0x%x", mqtt_get_msg_name(event), event);
+			// LUAT_DEBUG_PRINT("Unhandled MQTT event: %s 0x%x", mqtt_get_msg_name(event), event);
 			break;
     }
 }
@@ -218,11 +220,18 @@ static void mqtt_main_routine(void *param)
     mqtt_init(&mqttHandle->broker, MQTT_DEVICE_ID);
     mqtt_init_auth(&mqttHandle->broker, USERNAME, PASSWORD);
 
-    mqttHandle->keepalive = 240;
+    mqttHandle->keepalive = 30;
 	mqttHandle->broker.clean_session = 1;
     mqttHandle->reconnect = MQTT_AUTOCON;
     mqttHandle->reconnect_time = 3000; // 延迟3秒重连
 
+	// last will, recevice after 3 ping periods
+	char mqtt_will_topic[64];
+	char* mqtt_will_buf = "{}\n";	//k
+	sprintf(mqtt_will_topic, "/device/%s/state", svSystemID);
+	luat_mqtt_set_will(&mqttHandle->broker, mqtt_will_topic, mqtt_will_buf, strlen(mqtt_will_buf), 1, 1);
+
+	// callback
     luat_mqtt_set_cb(mqttHandle, mqtt_main_callback);
     LUAT_DEBUG_PRINT("Connecting to MQTT...");
 	ret = luat_mqtt_connect(mqttHandle);

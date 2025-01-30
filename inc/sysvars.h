@@ -41,7 +41,6 @@ extern uint8_t svDeviceType;
 extern uint8_t svDeviceDirection;
 extern uint8_t svDeviceStatus;
 extern char svUrlWXPay[256];
-extern char svUrlOta[256];
 
 extern uint8_t svCoinSw2;
 extern uint8_t svCoinPulseWidthInLow ;

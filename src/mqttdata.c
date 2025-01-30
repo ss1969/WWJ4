@@ -378,9 +378,11 @@ void mqtt_data_cb_config(char* data, uint32_t len)
     if(config.firmwareVersion > SOFTWARE_VERSION){
         //initialize OTA
         LUAT_DEBUG_PRINT("Start OTA: new version %d", config.firmwareVersion);
-        strcpy(svUrlOta, config.firmwareUrl);
-        extern void main_start_ota(void);
-        main_start_ota();
+        extern void ota_taskinit(const char * firmware_url);
+        gpio_deinit();
+        mqtt_deinit();
+        LUAT_DEBUG_PRINT("11111");
+        ota_taskinit(config.firmwareUrl);
         return;
     }
 

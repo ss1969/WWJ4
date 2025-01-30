@@ -22,8 +22,6 @@ extern void mobile_taskinit(void);
 extern void lcd_taskinit(void);
 
 
-#define MAIN_EVENT_OTA  1
-
 void getSystemID(void)
 {
     extern const char* luat_mcu_unique_id(size_t* t);
@@ -35,11 +33,6 @@ void getSystemID(void)
 
     luat_mobile_get_imei(0, svIMEI, sizeof(svIMEI));
     LUAT_DEBUG_PRINT("IMEI: %s", svIMEI);
-}
-
-void main_start_ota(void)
-{
-	luat_rtos_event_send(task_main_handle, MAIN_EVENT_OTA, 0, 0, 0, 1000);
 }
 
 static void main_main_routine(void *param)
@@ -82,9 +75,6 @@ static void main_main_routine(void *param)
 
         // switch(event.id){
         //     case MAIN_EVENT_OTA:
-        //         gpio_deinit();
-        //         mqtt_deinit();
-        //         uart_deinit();
 
         //         extern void ota_taskinit(void);
         //         // ota_taskinit();

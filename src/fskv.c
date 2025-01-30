@@ -17,6 +17,26 @@ static luat_rtos_timer_t timer0;
 
 static uint32_t _c, _d, _e, _r, _w;	// 4 counter store
 
+const char* FSKV_NAME[] = {
+    "COUNTER_C",
+    "COUNTER_D",
+    "COUNTER_E",
+    "COUNTER_R",
+    "COUNTER_W",
+    "COINER_SW2",
+    "COIN_IN_LOW",
+    "COIN_IN_HIGH",
+    "TICKET_IN_LOW",
+    "TICKET_IN_HIGH",
+    "DEV_STATUS",
+    "DEV_TYPE",
+    "DEV_SCREEN_DIR",
+    "COIN_PERPLAY_BTN1",
+    "COIN_PERPLAY_BTN2",
+    "TE_PULSE",
+    "URL_WXPAY",
+};
+
 // return 1 success
 static int ef_get_num(const char* key, uint32_t *data)
 {
@@ -79,7 +99,6 @@ static void fskv_read_data(void)
 
 	/* read settings */
 	ef_get_str("urlWxPay", svUrlWXPay);
-	ef_get_str("urlOta", svUrlOta);
 	ef_get_num8("dstatus", &svDeviceStatus);
 	ef_get_num8("dtype", &svDeviceType);
 	ef_get_num8("coinsw2", &svCoinSw2);
@@ -109,7 +128,6 @@ void fskv_reset_data(void)
 
 	/* set settings */
 	strcpy(svUrlWXPay, "");
-	strcpy(svUrlOta, "");
 	svDeviceStatus = 1;
 	svDeviceType = 2;
 	svCoinSw2 = 40;
@@ -122,7 +140,6 @@ void fskv_reset_data(void)
 	svCoinPerPlay2 = 2;
 	svTEpulse = 80;
 	ef_set_str("urlWxPay", svUrlWXPay);
-	ef_set_str("urlOta", svUrlOta);
 	ef_set_num8("dstatus", svDeviceStatus);
 	ef_set_num8("dtype", svDeviceType);
 	ef_set_num8("coinsw2", svCoinSw2);
@@ -168,7 +185,7 @@ static void fskv_main_rountine(void *param)
 			LUAT_DEBUG_PRINT("luat_rtos_event_recv ERROR %d", event.id);
 			continue;
 		}
-		LUAT_DEBUG_PRINT("luat_rtos_event_recv id:%d param1:%d", event.id, event.param1);
+		LUAT_DEBUG_PRINT("FSKV_SAVE %s -> %d", FSKV_NAME[event.id], event.param1);
 		switch(event.id)
 		{
 			// int types
@@ -190,7 +207,6 @@ static void fskv_main_rountine(void *param)
 			case FSKV_EVT_TE_PULSE: SETNU8("tepulse", svTEpulse);
 			// string types
 			case FSKV_EVT_URL_WXPAY: SETSTR("urlWxPay", svUrlWXPay);
-			case FSKV_EVT_URL_OTA: SETSTR("urlOta", svUrlOta);
 			default:
 				break;
 		}

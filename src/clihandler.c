@@ -160,7 +160,6 @@ static void cmd_env(int argc, char** argv)
     uart_print("   ticket want %d\n", svCounterW);
 
     uart_print("2  svUrlWXPay %s\n", svUrlWXPay);
-    uart_print("3  svUrlOta %s\n", svUrlOta);
     uart_print("4  svDeviceStatus %d\n", svDeviceStatus);
     uart_print("5  svDeviceType %d\n", svDeviceType);
     uart_print("7  svCoinSw2 %d\n", svCoinSw2);
@@ -194,7 +193,6 @@ static void cmd_set(int argc, char** argv)
     	case  0: fskv_save_async(FSKV_EVT_COUNTER_C, value); uart_print("set svCounterC %d\n", svCounterC); break;
     	case  1: fskv_save_async(FSKV_EVT_COUNTER_D, value); uart_print("set svCounterD %d\n", svCounterD); break;
     	case  2: fskv_save_async(FSKV_EVT_URL_WXPAY, (uint32_t)argv[2]); uart_print("set svUrlWXPay %s\n", argv[2]); break;
-    	case  3: fskv_save_async(FSKV_EVT_URL_OTA, (uint32_t)argv[2]); uart_print("set sxUrlUpdate %s\n", argv[2]); break;
     	case  4: fskv_save_async(FSKV_EVT_DEV_STATUS, value); uart_print("set svDeviceStatus %d\n", svDeviceStatus); break;
     	case  5: fskv_save_async(FSKV_EVT_DEV_TYPE, value); ; uart_print("set svDeviceType %d\n", svDeviceType); break;
     	case  7: fskv_save_async(FSKV_EVT_COINER_SW2, value); uart_print("set svCoinSw2 width %d\n", svCoinSw2); break;
@@ -207,12 +205,6 @@ static void cmd_set(int argc, char** argv)
     	case 14: fskv_save_async(FSKV_EVT_COIN_PERPLAY_BTN2, value); uart_print("set svCoinPerPlay2 %d\n", svCoinPerPlay2); break;
     	case 17: fskv_save_async(FSKV_EVT_TE_PULSE, value); uart_print("set svTEpulse %d\n", svTEpulse); break;
 	}
-}
-
-//---------------------------------------------------------------------------------------------
-static void cmd_ota(int argc, char** argv)
-{
-	uart_print("Start OTA : %s\n", svUrlOta);
 }
 
 //---------------------------------------------------------------------------------------------
@@ -290,7 +282,6 @@ struct cli_command cli[] = {
 	{"time",            "time",             				cmd_rtc},
 	{"env",             "env",             					cmd_env},
 	{"set",             "set [env id] [value]",             cmd_set},
-	{"ota",             "ota",                              cmd_ota},
 
 	{"dbg",             "dbg",              				cmd_sys_debugcoin},
 	{"coin",            "coin [count]",    				    cmd_coin},

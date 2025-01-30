@@ -101,11 +101,13 @@ static void ota_http_cb(int status, void *data, uint32_t len, void *param)
 }
 
 
-static void ota_main_rountine(void *param)
+static void ota_main_rountine(const char *firmware_url)
 {
+	char url[256] = {0};
+	strcpy(url, firmware_url);
+
 	luat_debug_set_fault_mode(LUAT_DEBUG_FAULT_HANG_RESET);
 
-	char version[20] = {0};
 	luat_event_t event;
 	int result;
 	size_t all, now_free_block, min_free_block, done_len = 0;
@@ -115,8 +117,8 @@ static void ota_main_rountine(void *param)
 	download.task_handle = luat_rtos_get_current_handle();
 	download.http = luat_http_client_create(ota_http_cb, &download, -1);
 	luat_fota_init(0, 0, NULL, NULL, 0);
-	luat_http_client_start(download.http, svUrlOta, 0, 0, 1);
-	LUAT_DEBUG_PRINT("ota start url %s", svUrlOta);
+	luat_http_client_start(download.http, url, 0, 0, 1);
+	LUAT_DEBUG_PRINT("ota start url %s", url);
 
 	while (1)
 	{
@@ -156,13 +158,16 @@ static void ota_main_rountine(void *param)
             case OTA_HTTP_FAILED:
                 LUAT_DEBUG_PRINT("full ota 测试失败");
                 break;
+			default:
+                LUAT_DEBUG_PRINT("full ota 未知事件 %d", event.id);
+				break;
 		}
 	}
 }
 
-void ota_taskinit(void)
+void ota_taskinit(const char * firmware_url)
 {
-	luat_rtos_task_create(&ota_task_handle, 4 * 1024, 50, "ota_task", ota_main_rountine, NULL, 0);
+	luat_rtos_task_create(&ota_task_handle, 4 * 1024, 50, "ota_task", ota_main_rountine, firmware_url, 0);
 }
 
 

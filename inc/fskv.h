@@ -27,7 +27,6 @@ typedef enum _FSKV_ITEM
     FSKV_EVT_TE_PULSE,
 
     FSKV_EVT_URL_WXPAY,
-    FSKV_EVT_URL_OTA,
 
 }FSKV_ITEM;
 
