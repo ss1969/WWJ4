@@ -8,14 +8,39 @@
     电源不稳会容易下载失败，必须一致按着BOOT直到开始
     下载binpkg不会reset，下载soc会
     luat_pm_get_poweron_reason 读到永远0
+    task 如果不进入循环，必须delete自己handle，否则会重启
 
 
-需要解决
-    软件定时器不准确
-    OTA未测试
+必须验证：
     ota：需要上传当前的版本号，在服务器获取url地址，然后使用url地址进行升级。服务器要给出适合当前版本号的差分包。
+    测试改xmake地址空间后，ota是否正常，kv是否正常。
     需要考虑升级增加了默认kv怎么办，不能擦除旧的kv
-    IrqHandlerPrizeOutInMode1 以后可以修改成侦测到rising后，需要确认宽度超过15小于105才能再一次进入rising
+    线材需要支持连接码表线，用于模式1读取出奖码表
+    现场测试IO口，
+        彩票机
+        投币器
+        我的世界那台机器上投币
+        飞线测试模拟码表
+    触摸测试，LCD刷新测试
+    设计新的计数器流程（不持久存储版本），并和服务器配合通过测试
 
-设计问题：
-    1，线材需要支持连接码表线，用于模式1读取出奖码表
+
+优化处理：
+    软件定时器不准确
+    IrqHandlerPrizeOutInMode1 以后可以修改成侦测到rising后，需要确认宽度超过15小于105才能再一次进入rising
+    2，优化lvgl
+        关掉不用的widgets
+        关掉不用的颜色支持
+        关掉不用的字体支持
+        benchmark用不了？
+        确认是否有dma模式
+        #define PSRAM_FEATURE_ENABLE
+            ec718p有2M的psram可用，不知道怎么用，不知道怎么看剩余内存大小
+        lvgl的内存分配模式
+        lvgl的os模式，是否可用更快的办法，比如用原生的api实现一些保护、mutex等
+        https://blog.csdn.net/weixin_43862847/article/details/109318017
+
+    3，xmake
+        改release模式，优化level
+        如何查看每个task的stack大小
+

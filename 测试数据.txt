@@ -1,13 +1,15 @@
 
 D:\Projects\WWJ780EP\Source\out\Source_ec718p.soc
+D:\DevTools\LuaTools\resource\LuatOS_Air780EP\LuatOS-SoC_V2002_Air780EP\LuatOS-SoC_V2002_Air780EP.soc
+
 
 MQTT测试数据
 
-1， /device/4e453432310f212845ff/config
+1， /device/4e453432310fc03e45ff/config
 
 {
-    "firmwareVersion": 30,
-    "firmwareUrl": "http://www.123.com/fw.bin",
+    "firmwareVersion": 3,
+    "firmwareUrl": "http://darksnow.cn:9999/Source_301301544_LuatOS_CSDK_EC7XX.sota",
     "resourceUrl": "http://..",
     "systemMode": 1,
     "payUrl": "http://",
@@ -23,7 +25,7 @@ MQTT测试数据
 }
 
 测试投币 1
-/device/4e453432310f212845ff/command
+/device/4e453432310fc03e45ff/command
 {
     "timeStamp" : 0xABCDEF00ABCDEF00, 
     "commandId" : 1

@@ -110,7 +110,7 @@ static void pushHistory(void) {
 //---------------------------------------------------------------------------------------------
 static int cliGetInput(void) {
     char ch;
-    while (1) {
+    while (true) {
         if (uart_getchar(&ch) == 0) {
             DELAY(10);
             continue;
@@ -376,7 +376,7 @@ static void cli_main_routine(void *param) {
     uart_print("\n");
     printPrompt();
 
-    while (1) {
+    while (true) {
         if (cliGetInput() == 1) {
             handleInput();
             printPrompt();

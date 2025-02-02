@@ -117,7 +117,7 @@ static void cmd_sysinfo(int argc, char **argv) {
     size_t max_used;
 
     uart_print("********************************************\n");
-    luat_meminfo_sys(&total, &used, max_used);
+    luat_meminfo_opt_sys(LUAT_HEAP_AUTO, &total, &used, max_used);
     uart_print("luat_meminfo_sys: total %dB used %dB max_used %dB\n", total, used, max_used);
 
     uart_print("********************************************\n");

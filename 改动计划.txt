@@ -1,16 +1,8 @@
-通用线路
-COIN_IN：投币器（2510-6)
-COIN_OUT_LA：主板（XH2.54）
-COIN_OUT_WATCH：码表
-
-正常监视模式
-监控彩票机出票
-PRZ_IN - 彩票机 OUT
-PRIZE_OUT_BOARD：码表
-
-彩票替换模式
-PRZ_IN - 主板彩票机OUT（模拟彩票机IN）
-PRIZE_OUT_BOARD - 主板彩票机IN（模拟彩票机OUT）
+线路说明：
+PIN_PRZ_MB_ONOFF   INPUT，接主板彩票口，开关；Mode1 不接，（PRZ_IN1）
+PIN_PRZ_MB_COUNT   OUTPUT，接主板彩票口，计数；Mode1 不接（PRZ_OUT1）
+PIN_PRZ_EXT_ONOFF  OUTOUT，接彩票机，Mode 1 不接（PRZ_OUT2）
+PIN_PRZ_EXT_COUNT  INPUT，接彩票机或码表（PRZ_IN2）
 
 真值表：
 COIN_OUT_CPU 1 : HA 0, LA 1, 感性1

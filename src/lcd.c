@@ -6,7 +6,7 @@
 #include "luat_lcd.h"
 #include "luat_gpio.h"
 
-#include "usart.h"
+#include "lcd.h"
 #include "st7789v.h"
 
 #define LCD_SPI SPI_ID0
@@ -28,37 +28,41 @@ static luat_spi_device_t lcd_spi_dev = {.bus_id              = LCD_SPI,
                                         .spi_config.bandrate = 51 * 1000000,
                                         .spi_config.cs       = LCD_CS};
 
-static luat_lcd_conf_t lcd_conf = {.port           = LUAT_LCD_SPI_DEVICE,
-                                   .lcd_spi_device = &lcd_spi_dev,
-                                   .opts           = &lcd_opts_st7789v,
-                                   .interface_mode = LUAT_LCD_IM_3_WIRE_9_BIT_INTERFACE_I,
-                                   .auto_flush     = 1,
-                                   .pin_dc         = LUAT_GPIO_NONE,
-                                   .pin_rst        = LCD_RST,
-                                   .pin_pwr        = LCD_PWR,
-                                   .lcd_cs_pin     = LCD_CS,
-                                   .direction      = 0,
-                                   .w              = ST7789V_W,
-                                   .h              = ST7789V_H,
-                                   .xoffset        = 0,
-                                   .yoffset        = 0};
+luat_lcd_conf_t lcd_conf = {.port           = LUAT_LCD_SPI_DEVICE,
+                            .lcd_spi_device = &lcd_spi_dev,
+                            .opts           = &lcd_opts_st7789v,
+                            .interface_mode = LUAT_LCD_IM_3_WIRE_9_BIT_INTERFACE_I,
+                            .auto_flush     = 1,
+                            .pin_dc         = LUAT_GPIO_NONE,
+                            .pin_rst        = LCD_RST,
+                            .pin_pwr        = LCD_PWR,
+                            .lcd_cs_pin     = LCD_CS,
+                            .direction      = 0,
+                            .w              = LCD_WIDTH,
+                            .h              = LCD_HEIGHT,
+                            .xoffset        = 0,
+                            .yoffset        = 0};
 
-#define RED   0xF800
-#define GREEN 0x07E0
-#define BLUE  0x001F
-
-static void task_test_lcd(void *param) {
+void lcd_init(void) {
     luat_spi_device_setup(&lcd_spi_dev);
     luat_lcd_init(&lcd_conf);
     st7789v_set_direction(&lcd_conf);
-
     luat_lcd_clear(&lcd_conf, LCD_WHITE);
+}
+
+void lcd_draw(int16_t x1, int16_t y1, int16_t x2, int16_t y2, luat_color_t *color) {
+    lcd_draw_3w9bt1(&lcd_conf, x1, y1, x2, y2, color);
+}
+
+#if 0 // TESTBENCH
+static void task_test_lcd(void *param) {
+    lcd_init();
 
     luat_lcd_draw_line(&lcd_conf, 20, 35, 140, 35, 0x001F);
     luat_lcd_draw_rectangle(&lcd_conf, 20, 40, 120, 70, 0xF800);
     luat_lcd_draw_circle(&lcd_conf, 60, 60, 10, 0x0CE0);
     luat_lcd_flush(&lcd_conf);
-    while (1) {
+    while (true) {
         luat_rtos_task_sleep(1000);
     }
 }
@@ -66,3 +70,4 @@ static void task_test_lcd(void *param) {
 void lcd_taskinit(void) {
     luat_rtos_task_create(&task_lcd_handle, 4096, 20, "lcd", task_test_lcd, NULL, 0);
 }
+#endif

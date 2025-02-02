@@ -162,7 +162,6 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
             else {
                 LUAT_DEBUG_PRINT("移动网络同步UTC时间出错");
             }
-
             break;
         case LUAT_MOBILE_EVENT_CSCON:
             LUAT_DEBUG_PRINT("RRC状态 %d", status);
@@ -185,14 +184,6 @@ static void mobile_get_band_string(uint8_t band1[], uint8_t total_num1, char *re
         else {
             offset += snprintf(result + offset, result_size - offset, "%d", band1[i]);
         }
-    }
-}
-
-static void mobile_main_routine(void *param) {
-    uint32_t             message_id = 0;
-    LUAT_SMS_RECV_MSG_T *data       = NULL;
-    while (1) {
-        luat_rtos_task_sleep(1000);
     }
 }
 
@@ -257,8 +248,6 @@ void mobile_taskinit(void) {
 
     luat_mobile_set_sim_detect_sim0_first(); // 优先sim 0
     luat_mobile_set_sync_time(1);            // 0，表示禁用基站同步时间，传入1，表示启用基站同步时间
-
-    luat_rtos_task_create(&task_mobile_handle, 8 * 1024, 40, "task_mobile", mobile_main_routine, NULL, 32);
 }
 
 void mobile_deinit(void) {

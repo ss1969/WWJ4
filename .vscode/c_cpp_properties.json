@@ -3,18 +3,20 @@
         {
             "name": "Win32",
             "includePath": [
-                "Inc",
+                "inc",
+                "src/lvgl",
                 "../../LuatOS/luat/include/**",
                 "../../LuatOS/components/**",
                 "../../luatos-soc-2024/PLAT/**",
                 "C:/Users/kiili/AppData/Local/.xmake/packages/g/gnu_rm/ec7xx/027fc68a548b4f8a82bbcfe3ac376454/arm-none-eabi/include/**",
                 "C:/Users/kiili/AppData/Local/.xmake/packages/g/gnu_rm/ec7xx/027fc68a548b4f8a82bbcfe3ac376454/lib/gcc/arm-none-eabi/10.2.1/include/**",
-                "${default}",
+                "${default}"
             ],
             "defines": [
                 "_DEBUG",
                 "UNICODE",
-                "_UNICODE"
+                "_UNICODE",
+                "__ASSEMBLY__"
             ],
             "cStandard": "c11",
             "cppStandard": "c++17",

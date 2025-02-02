@@ -19,7 +19,7 @@ static luat_rtos_task_handle task_main_handle;
 
 extern void cli_taskinit(void);
 extern void mobile_taskinit(void);
-extern void lcd_taskinit(void);
+extern void lvgl_taskinit(void);
 
 void getSystemID(void) {
     extern const char *luat_mcu_unique_id(size_t *t);
@@ -40,7 +40,7 @@ static void main_main_routine(void *param) {
     gpio_taskinit();
     mobile_taskinit();
     mqtt_taskinit();
-    lcd_taskinit();
+    lvgl_taskinit();
 
     /* info */
     uart_print("BUILD %s %s\n", __DATE__, __TIME__);
@@ -79,9 +79,9 @@ static void main_main_routine(void *param) {
         // }
 
         gpio_toggle(PIN_LED_D0);
-        luat_rtos_task_sleep(1000);
+        luat_rtos_task_sleep(10 * 1000);
     }
-    // while (1)
+    // while (true)
     // {
     //     luat_rtos_task_sleep(5 * 1000);
     //     WDT_kick();

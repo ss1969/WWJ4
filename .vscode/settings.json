@@ -61,7 +61,13 @@
         "luat_spi.h": "c",
         "networkmgr.h": "c",
         "luat_http.h": "c",
-        "http.h": "c"
+        "http.h": "c",
+        "lv_conf.h": "c",
+        "lv_port_indev.h": "c",
+        "lv_port_disp.h": "c",
+        "lvgl.h": "c",
+        "lv_demos.h": "c",
+        "lv_demo_widgets.h": "c"
     },
     "files.autoSave": "onFocusChange"
 }

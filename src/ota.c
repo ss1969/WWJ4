@@ -104,7 +104,7 @@ static void ota_main_rountine(const char *firmware_url) {
     luat_http_client_start(download.http, url, 0, 0, 1);
     LUAT_DEBUG_PRINT("ota start url %s", url);
 
-    while (1) {
+    while (true) {
         luat_rtos_event_recv(download.task_handle, 0, &event, NULL, LUAT_WAIT_FOREVER);
         switch (event.id) {
             case OTA_HTTP_GET_HEAD_DONE:
@@ -135,8 +135,8 @@ static void ota_main_rountine(const char *firmware_url) {
                 LUAT_DEBUG_PRINT("full ota 测试失败");
                 luat_http_client_close(download.http);
                 luat_http_client_destroy(&download.http);
-                while (1)
-                    luat_rtos_task_sleep(60000);
+                luat_rtos_task_sleep(60000);
+                luat_os_reboot(0);
                 break;
             case OTA_HTTP_FAILED:
                 LUAT_DEBUG_PRINT("full ota 测试失败");

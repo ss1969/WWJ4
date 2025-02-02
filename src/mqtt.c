@@ -256,7 +256,7 @@ static void mqtt_main_routine(void *param) {
 
     /* task loop for data publish */
     MQTT_MSG *msg = NULL;
-    while (1) {
+    while (true) {
         // receive
         ret = luat_rtos_message_recv(task_mqtt_handle, &message_id, (void **)&msg, LUAT_WAIT_FOREVER);
         if (ret) {

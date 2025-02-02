@@ -304,10 +304,9 @@ static int json2Command(char *jsonIn, Command *cmd) {
 }
 
 void mqtt_data_cb_config(char *data, uint32_t len) {
-    /* 检查是不是一个broker清除retain message的操作 */
+    /* 检查是否收到长度0的 config，这是解绑 */
     if (len == 0) {
         LUAT_DEBUG_PRINT("收到空config，这是一个解绑操作");
-        /* 这是一个解绑操作 */
         fskv_reset_data();
         LUAT_DEBUG_PRINT("fskv_reset_data() done");
         luat_rtos_task_sleep(1000);
