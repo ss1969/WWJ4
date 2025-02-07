@@ -79,7 +79,7 @@ static void main_main_routine(void *param) {
         // }
 
         gpio_toggle(PIN_LED_D0);
-        luat_rtos_task_sleep(10 * 1000);
+        luat_rtos_task_sleep(1 * 1000);
     }
     // while (true)
     // {

@@ -12,14 +12,23 @@
 
 // FT6336 部分寄存器定义
 // 6236 和 6336 区别在于6336支持5个触摸点
-#define FT6336_ADDR          0x38
-#define FT6336_GET_FINGERNUM 0x02
-#define FT6336_GET_LOC0      0x03
-#define FT6336_GET_LOC1      0x09
-
+#define FT6336_ADDR  0x38
 #define TP_RST_PIN   HAL_GPIO_22
 #define TP_INT_PIN   HAL_GPIO_36
-#define TP_I2C_INDEX 1
+#define TP_I2C_INDEX 0
+
+typedef enum FT6336_MODE_E {
+    FT6336_MODE_OP = 0,
+    FT6336_MODE_TE = 0x40,
+    FT6336_MODE_SY = 0x10,
+} FT6336_MODE;
+
+typedef enum {
+    FT6336_DEVICE_MODE   = 0x00,
+    FT6336_GET_FINGERNUM = 0x02,
+    FT6336_GET_LOC0      = 0x03,
+    FT6336_GET_LOC1      = 0x09,
+} FT6336_REG_OP;
 
 // Variables
 luat_rtos_task_handle task_tp_handle;
@@ -36,22 +45,26 @@ void tp_get_data(int16_t *x, int16_t *y) {
     is_pressed = false;
 }
 
-static int tp_int_cb(int pin, void *args) {
+static inline int tp_int_cb(int pin, void *args) {
     if (pin == TP_INT_PIN) {
         luat_rtos_event_send(task_tp_handle, 0, 0, 0, 0, 0);
     }
     return 0;
 }
 
-static int ft6336_read(uint8_t regAddr, uint8_t *buf, uint8_t len) {
-    uint8_t tx_buf[2] = {0};
-    tx_buf[0]         = regAddr;
-    luat_i2c_send(TP_I2C_INDEX, FT6336_ADDR, tx_buf, 1, 1);
-    luat_i2c_recv(TP_I2C_INDEX, FT6336_ADDR, buf, len);
-    return 1;
+static inline int ft6336_read(uint8_t regAddr, uint8_t *buf, uint8_t len) {
+    return luat_i2c_read_reg(TP_I2C_INDEX, FT6336_ADDR, regAddr, buf, len);
 }
 
-static uint8_t ft6336_scan(int16_t *pos) {
+static inline int ft6336_write(uint8_t regAddr, uint8_t data) {
+    return luat_i2c_write_reg(TP_I2C_INDEX, FT6336_ADDR, regAddr, &data, 1, 1);
+}
+
+static inline void ft6336_setmode(FT6336_MODE mode) {
+    ft6336_write(FT6336_DEVICE_MODE, mode);
+}
+
+static inline uint8_t ft6336_scan(int16_t *pos) {
     uint8_t temp[8]    = {0};
     uint8_t finger_num = 0;
 
@@ -70,9 +83,8 @@ static uint8_t ft6336_scan(int16_t *pos) {
 }
 
 static void touchpad_main_routine(void *param) {
-    luat_mcu_iomux_ctrl(LUAT_MCU_PERIPHERAL_I2C, TP_I2C_INDEX, 23, 2, 0);
-    luat_mcu_iomux_ctrl(LUAT_MCU_PERIPHERAL_I2C, TP_I2C_INDEX, 24, 2, 0);
 
+    // int & reset
     luat_gpio_cfg_t cfg = {0};
     cfg.pin             = TP_RST_PIN;
     cfg.mode            = LUAT_GPIO_OUTPUT;
@@ -86,13 +98,18 @@ static void touchpad_main_routine(void *param) {
     cfg.irq_cb   = tp_int_cb;
     luat_gpio_open(&cfg);
 
+    // reset chip
     luat_gpio_set(TP_RST_PIN, 0);
     luat_rtos_task_sleep(10);
     luat_gpio_set(TP_RST_PIN, 1);
 
+    // init i2c, 这里使用I2C0，由paddr 13、14 mux
+    luat_mcu_iomux_ctrl(LUAT_MCU_PERIPHERAL_I2C, TP_I2C_INDEX, 13, 2, 0);
+    luat_mcu_iomux_ctrl(LUAT_MCU_PERIPHERAL_I2C, TP_I2C_INDEX, 14, 2, 0);
     luat_i2c_setup(TP_I2C_INDEX, 1);
-    luat_event_t event;
 
+    // task
+    luat_event_t event;
     while (true) {
         luat_rtos_event_recv(task_tp_handle, 0, &event, NULL, LUAT_WAIT_FOREVER);
         is_pressed = ft6336_scan(xy_pos) > 0;

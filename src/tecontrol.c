@@ -11,7 +11,3 @@
 #include "wrapper.h"
 #include "sysvars.h"
 #include "wgpio.h"
-
-void te_set_direct_out(bool directOut) {
-    svTicketDirectOut = directOut;
-}

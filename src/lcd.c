@@ -47,7 +47,7 @@ void lcd_init(void) {
     luat_spi_device_setup(&lcd_spi_dev);
     luat_lcd_init(&lcd_conf);
     st7789v_set_direction(&lcd_conf);
-    luat_lcd_clear(&lcd_conf, LCD_WHITE);
+    luat_lcd_clear(&lcd_conf, LCD_BLACK);
 }
 
 void lcd_draw(int16_t x1, int16_t y1, int16_t x2, int16_t y2, luat_color_t *color) {

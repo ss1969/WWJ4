@@ -67,7 +67,14 @@
         "lv_port_disp.h": "c",
         "lvgl.h": "c",
         "lv_demos.h": "c",
-        "lv_demo_widgets.h": "c"
+        "lv_demo_widgets.h": "c",
+        "driver_usp.h": "c",
+        "soc_spi.h": "c",
+        "xiosbase": "c",
+        "chrono": "c",
+        "xlocale": "c",
+        "regex": "c",
+        "xstring": "c"
     },
     "files.autoSave": "onFocusChange"
 }

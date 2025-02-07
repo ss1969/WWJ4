@@ -34,7 +34,7 @@ static uint8_t              ticketerSw2;   /* 彩票机 计数信号 读取值*/
 // 对投币器模拟
 static void timer0_callback_coiner(void *param) {
     if (coinInsert > 0) {
-        LUAT_DEBUG_PRINT("timer0_cb coinInsert=%d", coinInsert);
+        // LUAT_DEBUG_PRINT("timer0_cb coinInsert=%d", coinInsert);
         gpio_toggle(PIN_COIN_OUT_LA);
         gpio_toggle(PIN_COIN_OUT_HA);
         gpio_toggle(PIN_COIN_OUT_WATCH);
@@ -50,7 +50,7 @@ uint8_t bsp_user_init_io(void) {
 // 定时器1
 static void timer1_callback_te(void *param) {
     static char state = 0;
-    if (state == 0) {
+    if (state == 1) {
         state = 1;
         luat_gpio_set(PIN_PRZ_MB_COUNT, !ticketerSw2);
         ticketEmu++; // 写入单个edge即认为计数增加，因为主板会在单个edge后关掉onoff
@@ -168,7 +168,7 @@ static void IrqHandlerPrizeExtCntMode2(void *data, void *args) {
     // 读IO
     GPIO_PinState ps = luat_gpio_get(PIN_PRZ_EXT_COUNT);
     if (svDbgCoin)
-        LUAT_DEBUG_PRINT("PIN_PRZ_EXT_COUNT %s @ %dms", ps ? "HIGH" : "LOW", TICK2MS(SYSTICK()));
+        LUAT_DEBUG_PRINT("PIN_PRZ_EXT_COUNT Mode2 %s @ %dms", ps ? "HIGH" : "LOW", TICK2MS(SYSTICK()));
 
     // 直出模式，把彩票机的 OUT 直接 给到 主板
     if (svTicketDirectOut) {
@@ -192,7 +192,7 @@ static void IrqHandlerPrizeExtCntMode2(void *data, void *args) {
 static void IrqHandlerPrizeMBOnoffMode2(void *data, void *args) {
     GPIO_PinState ps = luat_gpio_get(PIN_PRZ_MB_ONOFF);
     if (svDbgCoin)
-        LUAT_DEBUG_PRINT("PIN_PRZ_MB_ONOFF %s @ %dms", ps ? "HIGH" : "LOW", TICK2MS(SYSTICK()));
+        LUAT_DEBUG_PRINT("MB Onoff Mode2 PIN_PRZ_MB_ONOFF %s @ %dms", ps ? "HIGH" : "LOW", TICK2MS(SYSTICK()));
 
     // 直出模式，把主板的ONOFF 直接给到 彩票机
     if (svTicketDirectOut) {
@@ -201,14 +201,17 @@ static void IrqHandlerPrizeMBOnoffMode2(void *data, void *args) {
     }
 
     // 非直出模式，收到主板的ONOFF后进行定时器模拟
-    if (ps != ticketerSw1) { // start emulate
+    LUAT_DEBUG_PRINT("No direct, ps %d sw1 %d", ps, ticketerSw1);
+    if (ps == ticketerSw1) { // 因为sw1是正确值，而ps是反向值，所以相等表示sw1生效
         ticketEmu = 0;
-        if (timer1)
+        if (timer1) {
             luat_rtos_timer_start(timer1, svTEpulse / 2, 1, timer1_callback_te, NULL);
+        }
     }
     else { // stop emulate. 因为主板一般在收到单个edge就会关掉MB_ONOFF，所以手工把PIN_PRZ_MB_COUNT写inactive
-        if (timer1)
+        if (timer1) {
             luat_rtos_timer_stop(timer1);
+        }
         luat_gpio_set(PIN_PRZ_MB_COUNT, ticketerSw2);
         LUAT_DEBUG_PRINT("TICKET EMULATED: %d tickets, timer %d", ticketEmu);
     }
@@ -251,12 +254,11 @@ static void gpio_dev_init(void) {
     luat_gpio_open(&gpio_cfg);
 
     // PIN_PRZ_MB_ONOFF （仅mode2）
-    if (svDeviceType == 2) {
-        gpio_cfg.pin      = PIN_PRZ_MB_ONOFF;
-        gpio_cfg.irq_type = LUAT_GPIO_BOTH_IRQ;
-        gpio_cfg.irq_cb   = (void *)IrqHandlerPrizeMBOnoffMode2;
-        luat_gpio_open(&gpio_cfg);
-    }
+    LUAT_DEBUG_PRINT("svDeviceType %d init gpio ", svDeviceType);
+    gpio_cfg.pin      = PIN_PRZ_MB_ONOFF;
+    gpio_cfg.irq_type = LUAT_GPIO_BOTH_IRQ;
+    gpio_cfg.irq_cb   = (void *)IrqHandlerPrizeMBOnoffMode2;
+    luat_gpio_open(&gpio_cfg);
 
     // output pins
     gpio_cfg.mode     = LUAT_GPIO_OUTPUT;
@@ -276,16 +278,16 @@ static void gpio_dev_init(void) {
     luat_gpio_open(&gpio_cfg);
 
     // set defaults
-    coinSw1 = luat_gpio_get(PIN_COIN_IN) ? 0 : 1;   // 读取投币器输出值，要取反才是开关值
-    luat_gpio_set(PIN_COIN_OUT_HA, 1);              // HA 是反向，默认输出 0
-    luat_gpio_set(PIN_COIN_OUT_LA, 0);              // LA 是反向，默认输出 1
-    luat_gpio_set(PIN_COIN_OUT_WATCH, 0);           // WA 是反向，默认输出 1
+    coinSw1 = luat_gpio_get(PIN_COIN_IN);                   // 读取投币器输出值，直接用。（取反才是真实线路值）
+    luat_gpio_set(PIN_COIN_OUT_HA, 1);                      // HA 是反向，默认输出 0
+    luat_gpio_set(PIN_COIN_OUT_LA, 0);                      // LA 是反向，默认输出 1
+    luat_gpio_set(PIN_COIN_OUT_WATCH, 0);                   // WA 是反向，默认输出 1
 
-    ticketerSw1 = luat_gpio_get(PIN_PRZ_MB_ONOFF);  // 读取主板彩票机开启信号值
-    luat_gpio_set(PIN_PRZ_EXT_ONOFF, ticketerSw1);  // 输出同向
+    ticketerSw1 = luat_gpio_get(PIN_PRZ_MB_ONOFF) ? 0 : 1;  // 读取主板彩票机开启信号值（要取反才是真实线路值）
+    luat_gpio_set(PIN_PRZ_EXT_ONOFF, ticketerSw1);          // 输出同向，所以上面取反，不然就相当于一直打开彩票机了
 
-    ticketerSw2 = luat_gpio_get(PIN_PRZ_EXT_COUNT); // 读取彩票机计数信号值
-    luat_gpio_set(PIN_PRZ_MB_COUNT, ticketerSw2);   // 输出同向
+    ticketerSw2 = luat_gpio_get(PIN_PRZ_EXT_COUNT) ? 0 : 1; // 读取彩票机计数信号值（要取反才是真实线路值）
+    luat_gpio_set(PIN_PRZ_MB_COUNT, ticketerSw2);           // 输出同向，所以上面取反，不然无法模拟彩票机的输出
 
     LUAT_DEBUG_PRINT("gpio_init end");
 }
@@ -338,7 +340,6 @@ void gpio_led(bool on) {
 }
 
 void gpio_outCoin(int count) {
-    LUAT_DEBUG_PRINT("gpio_outCoin=%d", count);
     coinInsert += count * 2;
 }
 
@@ -346,4 +347,13 @@ void gpio_outTicket(int count) {
     ticketWantOut += count;
     svCounterW += count;
     luat_gpio_set(PIN_PRZ_EXT_ONOFF, !ticketerSw1); // Turn On real ticketer
+}
+
+void gpio_setDirectOut(bool directOut) {
+    if (svTicketDirectOut && !directOut) {
+        if (timer1) {
+            luat_rtos_timer_stop(timer1);
+        }
+    }
+    svTicketDirectOut = directOut;
 }

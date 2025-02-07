@@ -19,27 +19,13 @@
 #define SPI_LCD_RAM_CACHE_MAX (LCD_WIDTH * LCD_HEIGHT)
 
 #define LVGL_FLUSH_EVENT    1
-#define LVGL_FLUSH_TIME     30
-#define LVGL_FLUSH_BUF_LINE 32
+#define LVGL_FLUSH_BUF_LINE 320
 
 luat_rtos_task_handle lvgl_flush_task;
-luat_rtos_timer_t     lvgl_flush_timer;
-luat_rtos_timer_t     lvgl_tick_timer;
 static int            wait_flush = 0;
-static void          *draw_buf;
+static void          *draw_buf   = NULL;
 static lv_indev_t    *indev_touchpad;
 volatile bool         disp_flush_enabled = true;
-
-static LUAT_RT_RET_TYPE lvgl_flush_timer_cb(LUAT_RT_CB_PARAM) {
-    if (wait_flush < 2) {
-        wait_flush++;
-        luat_send_event_to_task(lvgl_flush_task, LVGL_FLUSH_EVENT, 0, 0, 0);
-    }
-}
-
-static LUAT_RT_RET_TYPE lvgl_tick_timer_cb(LUAT_RT_CB_PARAM) {
-    lv_tick_inc(1);
-}
 
 static void display_flush(lv_display_t *disp_drv, const lv_area_t *area, uint8_t *px_map) {
     if (disp_flush_enabled) {
@@ -87,8 +73,12 @@ static void lvgl_main_routine(void *param) {
     /* below in lv_port_disp_template.c lv_port_indev_init() */
     lv_display_t *disp = lv_display_create(LCD_WIDTH, LCD_HEIGHT);
     lv_display_set_flush_cb(disp, display_flush);
+
     draw_buf = malloc(LCD_WIDTH * LVGL_FLUSH_BUF_LINE * sizeof(lv_color_t));
-    lv_display_set_buffers(disp, draw_buf, NULL, LCD_WIDTH * LVGL_FLUSH_BUF_LINE, LV_DISPLAY_RENDER_MODE_PARTIAL);
+    LUAT_DEBUG_ASSERT(draw_buf != NULL, "allocate lvgl buffer fail %dB",
+                      LCD_WIDTH * LVGL_FLUSH_BUF_LINE * sizeof(lv_color_t));
+    lv_display_set_buffers(disp, draw_buf, NULL, LCD_WIDTH * LVGL_FLUSH_BUF_LINE * sizeof(lv_color_t),
+                           LV_DISPLAY_RENDER_MODE_PARTIAL);
 
     /* below in lv_port_indev_template.c lv_port_indev_init() */
     tp_taskinit();
@@ -96,24 +86,19 @@ static void lvgl_main_routine(void *param) {
     lv_indev_set_type(indev_touchpad, LV_INDEV_TYPE_POINTER);
     lv_indev_set_read_cb(indev_touchpad, touchpad_read);
 
-    /* flush timer  */
-    luat_start_rtos_timer(lvgl_flush_timer, LVGL_FLUSH_TIME, 1);
-    luat_start_rtos_timer(lvgl_tick_timer, 1, 1);
+    /* tick init */
+    lv_tick_set_cb(soc_get_poweron_time_ms);
+
+    /* own routine */
     lv_demo_widgets();
     // lv_demo_benchmark();
 
     while (true) {
-        luat_wait_event_from_task(lvgl_flush_task, 0, &event, NULL, LUAT_WAIT_FOREVER);
-        if (wait_flush)
-            wait_flush--;
-        lv_timer_handler();
+        uint32_t t = lv_timer_handler();
+        luat_rtos_task_sleep(t);
     }
 }
 
 void lvgl_taskinit(void) {
-    luat_rtos_task_create(&lvgl_flush_task, 8192, 90, "lvgl", lvgl_main_routine, NULL, 16);
-    lvgl_flush_timer = luat_create_rtos_timer(lvgl_flush_timer_cb, NULL, NULL);
-    lvgl_tick_timer  = luat_create_rtos_timer(lvgl_tick_timer_cb, NULL, NULL);
+    luat_rtos_task_create(&lvgl_flush_task, 8 * 1024, 90, "lvgl", lvgl_main_routine, NULL, 16);
 }
-
-// INIT_TASK_EXPORT(lvgl_taskinit, "0");

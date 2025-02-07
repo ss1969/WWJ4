@@ -90,8 +90,6 @@ static void ota_main_rountine(const char *firmware_url) {
     char url[256] = {0};
     strcpy(url, firmware_url);
 
-    luat_debug_set_fault_mode(LUAT_DEBUG_FAULT_HANG_RESET);
-
     luat_event_t event;
     int          result;
     size_t       all, now_free_block, min_free_block, done_len = 0;

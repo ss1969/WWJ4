@@ -128,10 +128,9 @@ void mqtt_pub_sms(char *time, char *phone, char *pdu) {
 
 /********************** FOR SUBSCRIBE **********************/
 enum _MQTT_COMMAND_IDS {
-    MQTT_CMD_INSERTCOIN    = 1,
-    MQTT_CMD_RESETCOUNTER  = 2,
-    MQTT_CMD_DIRECTOUTMODE = 3,
-    MQTT_CMD_REBOOT        = 99,
+    MQTT_CMD_INSERTCOIN   = 1,
+    MQTT_CMD_RESETCOUNTER = 2,
+    MQTT_CMD_REBOOT       = 99,
 } MQTT_COMMAND_IDS;
 
 /* Mqtt的json数据和配置结构体来回转换 */
@@ -258,6 +257,14 @@ static int json2Config(char *jsonIn, MqttConfig *config) {
     }
     config->direction = item->valueint;
 
+    item = cJSON_GetObjectItem(json, "ticketDirectOut");
+    if (!item || !cJSON_IsNumber(item)) {
+        LUAT_DEBUG_PRINT("Invalid or missing 'ticketDirectOut' field.");
+        cJSON_Delete(json);
+        return -1;
+    }
+    config->ticketDirectOut = item->valueint;
+
     cJSON_Delete(json);
     return 0;
 }
@@ -367,8 +374,7 @@ void mqtt_data_cb_config(char *data, uint32_t len) {
     // fskv_save_async(FSKV_EVT_COIN_PERPLAY_BTN2, config.coinPerPlay2);
     fskv_save_async(FSKV_EVT_DEV_SCREEN_DIR, config.direction);
     svDeviceDirection = config.direction;
-
-    te_set_direct_out(config.ticketDirectOut);
+    gpio_setDirectOut(config.ticketDirectOut);
 
     // 如果版本更高则升级
     // 需要排除https开头，因为现在https开头的直接要挂
@@ -414,11 +420,6 @@ void mqtt_data_cb_command(char *data, uint32_t len) {
         case MQTT_CMD_RESETCOUNTER: {
             strcpy(svLastCommandExecuted, cmd.timeStamp);
             // k
-        } break;
-        case MQTT_CMD_DIRECTOUTMODE: {
-            int mode = strtoul(cmd.commandParam, NULL, 16);
-            strcpy(svLastCommandExecuted, cmd.timeStamp);
-            te_set_direct_out(mode ? 1 : 0);
         } break;
         case MQTT_CMD_REBOOT: {
             strcpy(svLastCommandExecuted, cmd.timeStamp);

@@ -16,6 +16,7 @@
 #include "mqttdata.h"
 #include "tecontrol.h"
 #include "http.h"
+#include "lcd.h"
 
 #include "cli.h"
 
@@ -143,6 +144,7 @@ static void cmd_env(int argc, char **argv) {
     uart_print("   ticket emu %d\n", svCounterE);
     uart_print("   ticket real %d\n", svCounterR);
     uart_print("   ticket want %d\n", svCounterW);
+    uart_print("   direct ticket mode %s\n", svTicketDirectOut ? "ON" : "OFF");
 
     uart_print("2  svUrlWXPay %s\n", svUrlWXPay);
     uart_print("4  svDeviceStatus %d\n", svDeviceStatus);
@@ -276,13 +278,39 @@ static void cmd_direct(int argc, char **argv) {
         return;
     }
     uart_print("direct ticket out: %d -> %d\n", svTicketDirectOut, d);
-    te_set_direct_out(d);
+    gpio_setDirectOut(d);
 }
+
+#include "luat_lcd.h"
 
 //---------------------------------------------------------------------------------------------
 static void cmd_test1(int argc, char **argv) {
-    mqtt_pub_status();
-    mqtt_pub_counter();
+    // mqtt_pub_status();
+    // mqtt_pub_counter();
+
+    uint32_t d, e;
+
+    if ((Str2Dec32(argv[1], &d) == 0)) {
+        uart_print("count error :%d\n", d);
+        return;
+    }
+    if ((Str2Hex32(argv[2], &e) == 0)) {
+        uart_print("color error :#%x\n", e);
+        return;
+    }
+
+    luat_color_t *color = (luat_color_t *)malloc(240 * 320 * sizeof(luat_color_t));
+    for (int i = 0; i < 240 * 320; i++)
+        color[i] = (luat_color_t)(0xFFFF & e);
+
+    uint64_t ms1 = soc_get_poweron_time_ms();
+    for (int i = 0; i < d; i++)
+        lcd_draw(0, 0, 240 - 1, 320 - 1, color);
+    uint64_t ms2 = soc_get_poweron_time_ms();
+
+    free(color);
+
+    uart_print("%d times, %d ms\n", d, ms2 - ms1);
 }
 
 void http_cb(const char *data, const int size, HTTP_STATUS status) {
@@ -298,7 +326,7 @@ void http_cb(const char *data, const int size, HTTP_STATUS status) {
 //---------------------------------------------------------------------------------------------
 static void cmd_test2(int argc, char **argv) {
 
-    http_get(svHttpServer, http_cb);
+    // http_get(svHttpServer, http_cb);
 }
 
 //---------------------------------------------------------------------------------------------
