@@ -107,17 +107,14 @@ static void ota_main_rountine(const char *firmware_url) {
         switch (event.id) {
             case OTA_HTTP_GET_HEAD_DONE:
                 done_len = 0;
-                LUAT_DEBUG_PRINT("status %d total %u", luat_http_client_get_status_code(download.http),
-                                 download.http->context_len);
+                LUAT_DEBUG_PRINT("status %d total %u", luat_http_client_get_status_code(download.http), download.http->context_len);
                 break;
             case OTA_HTTP_GET_DATA:
                 done_len += event.param2;
                 result = luat_fota_write((uint8_t *)event.param1, event.param2);
                 luat_heap_free((uint8_t *)event.param1);
-
                 luat_meminfo_sys(&all, &now_free_block, &min_free_block);
-                LUAT_DEBUG_PRINT("ota data: %d, mem: all %d, now_free %d, min_free %d", done_len, all, now_free_block,
-                                 min_free_block);
+                LUAT_DEBUG_PRINT("ota data: %d, mem: all %d, now_free %d, min_free %d", done_len, all, now_free_block, min_free_block);
 
                 // 对下载速度进行控制，如果下载速度过快，会导致ram耗尽出错
                 if (download.http_data_cnt) {
@@ -146,6 +143,6 @@ static void ota_main_rountine(const char *firmware_url) {
     }
 }
 
-void ota_taskinit(const char *firmware_url) {
+void ota_task_init(const char *firmware_url) {
     luat_rtos_task_create(&ota_task_handle, 4 * 1024, 50, "ota_task", ota_main_rountine, firmware_url, 0);
 }

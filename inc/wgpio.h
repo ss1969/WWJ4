@@ -13,7 +13,7 @@
 #define PIN_LED_D0         HAL_GPIO_16
 #define PIN_GPIO_16_ALT    4
 
-void gpio_taskinit(void);
+void gpio_task_init(void);
 void gpio_deinit(void);
 int  gpio_toggle(int pin);
 void gpio_led(bool on);

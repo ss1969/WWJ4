@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "wrapper.h"
 
 #define MaxLenStr 80
 
@@ -40,16 +41,16 @@ void Str2Upr(char *str) {
     }
 }
 
-#define CONVERT_TO_TYPE(s1, s2)                                                                                        \
-    if (str == NULL)                                                                                                   \
-        return 0;                                                                                                      \
-    if (sscanf(str, s1, num) == 1) {                                                                                   \
-        return 1;                                                                                                      \
-    }                                                                                                                  \
-    Str2Lwr(str);                                                                                                      \
-    if (sscanf(str, s2, num) == 1) {                                                                                   \
-        return 1;                                                                                                      \
-    }                                                                                                                  \
+#define CONVERT_TO_TYPE(s1, s2)                                                                                                                                \
+    if (str == NULL)                                                                                                                                           \
+        return 0;                                                                                                                                              \
+    if (sscanf(str, s1, num) == 1) {                                                                                                                           \
+        return 1;                                                                                                                                              \
+    }                                                                                                                                                          \
+    Str2Lwr(str);                                                                                                                                              \
+    if (sscanf(str, s2, num) == 1) {                                                                                                                           \
+        return 1;                                                                                                                                              \
+    }                                                                                                                                                          \
     return 0;
 
 /* string convert to number; default dec. */
@@ -112,7 +113,7 @@ char *convertToUnicode(const char *hexStr) {
 
     size_t hexLen      = strlen(hexStr);
     size_t unicode_len = hexLen / 4;
-    char  *unicode_str = (char *)malloc((unicode_len * 3 + 1) * sizeof(char)); // UTF-8编码可能需要最多3个字节
+    char  *unicode_str = (char *)MALLOC((unicode_len * 3 + 1) * sizeof(char)); // UTF-8编码可能需要最多3个字节
     if (unicode_str == NULL) {
         printf("memory lock fail\n");
         return NULL;

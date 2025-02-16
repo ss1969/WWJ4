@@ -385,7 +385,7 @@ static void cli_main_routine(void *param) {
     }
 }
 
-void cli_taskinit(void) {
+void cli_task_init(void) {
     luat_rtos_task_create(&task_cli_handle, 8 * 1024, 10, "task_cli", cli_main_routine, NULL, 0);
 }
 

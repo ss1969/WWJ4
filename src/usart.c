@@ -52,7 +52,7 @@ static void uart_dev_init() {
                             .data_bits = uart_configs[i].data_bits,
                             .stop_bits = uart_configs[i].stop_bits,
                             .parity    = uart_configs[i].parity};
-        RingBufInit(&rbuf[i], rx_buffer[i], sizeof(rx_buffer[0]), 0);
+        RingBufInit(&rbuf[i], rx_buffer[i], sizeof(rx_buffer[0]), true);
         LUAT_DEBUG_PRINT("[UART] setup uart #%d result %d", uart_configs[i].id, luat_uart_setup(&uart));
         LUAT_DEBUG_PRINT("[UART] ctrl result %d",
                          luat_uart_ctrl(uart_configs[i].id, LUAT_UART_SET_RECV_CALLBACK, luat_uart_recv_cb));
@@ -131,7 +131,7 @@ static void uart_main_routine(void *param) {
     }
 }
 
-void uart_taskinit(void) {
+void uart_task_init(void) {
     uart_dev_init();
     luat_rtos_task_create(&task_uart_handle, 4 * 1024, 80, "task_uart", uart_main_routine, NULL, 0);
 }

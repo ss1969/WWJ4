@@ -2,22 +2,12 @@ BasedOnStyle: LLVM
 
 SortIncludes: Never
 IndentWidth: 4
-ColumnLimit: 120
+ColumnLimit: 160
 UseTab: Never
 IndentCaseLabels: true
 
 AllowShortFunctionsOnASingleLine: None
 
-BreakBeforeBraces: Custom
-BraceWrapping:
-  AfterEnum: false
-  AfterStruct: false
-  AfterClass: true
-  AfterFunction: false
-  SplitEmptyFunction: false
-  BeforeWhile: true
-  BeforeCatch: true
-  BeforeElse: true
 
 AlignConsecutiveAssignments:
   Enabled: true
@@ -42,3 +32,16 @@ AlignConsecutiveMacros:
 AlignTrailingComments:
   Kind: Always
   OverEmptyLines: 1
+
+BinPackArguments: false # 禁止将参数/元素打包到同一行
+
+BreakBeforeBraces: Custom # 控制大括号换行
+BraceWrapping:
+  AfterEnum: false
+  AfterStruct: false
+  AfterClass: true
+  AfterFunction: false
+  SplitEmptyFunction: false
+  BeforeWhile: true
+  BeforeCatch: true
+  BeforeElse: true

@@ -18,9 +18,23 @@ static luat_rtos_timer_t     timer0;
 static uint32_t _c, _d, _e, _r, _w; // 4 counter store
 
 const char *FSKV_NAME[] = {
-    "COUNTER_C",      "COUNTER_D",         "COUNTER_E",         "COUNTER_R",      "COUNTER_W",  "COINER_SW2",
-    "COIN_IN_LOW",    "COIN_IN_HIGH",      "TICKET_IN_LOW",     "TICKET_IN_HIGH", "DEV_STATUS", "DEV_TYPE",
-    "DEV_SCREEN_DIR", "COIN_PERPLAY_BTN1", "COIN_PERPLAY_BTN2", "TE_PULSE",       "URL_WXPAY",
+    "COUNTER_C",
+    "COUNTER_D",
+    "C OUNTER_E",
+    "COUNTER_R",
+    "COUNTER_W",
+    "COINER_SW2",
+    "COIN_IN_LOW",
+    "COIN_IN_HIGH",
+    "TICKET_IN_LOW",
+    "TICKET_IN_HIGH",
+    "DEV_STATUS",
+    "DEV_TYPE",
+    "DEV_SCREEN_DIR",
+    "COIN_PERPLAY_BTN1",
+    "COIN_PERPLAY_BTN2",
+    "TE_PULSE",
+    "URL_WXPAY",
 };
 
 // return 1 success
@@ -242,7 +256,7 @@ void fskv_save_async(FSKV_ITEM item, uint32_t p1) {
     luat_rtos_event_send(task_fskv_handle, item, p1, 0, 0, 1000);
 }
 
-void fskv_taskinit(void) {
+void fskv_task_init(void) {
     fskv_dev_init();
 
     _c = svCounterC;

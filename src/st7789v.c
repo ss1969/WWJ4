@@ -8,9 +8,9 @@
 #include "sysvars.h"
 
 #include "usart.h"
-#define BULK_SIZE                                                                                                      \
-    (14 * 9) // 每9byte == 8个数据，这里必须是9的倍数
-             // 不知道为什么15以上就黑屏
+#define BULK_SIZE (14 * 9) // 每9byte == 8个数据，这里必须是9的倍数，不知道为什么15以上就黑屏
+
+static luat_rtos_semaphore_t spi_dma_sema;
 
 /* 3WIRE 9BIT MODE1, 320x240 */
 static const uint16_t st7789v_init_cmds[] = {
@@ -104,7 +104,7 @@ static inline void write_16b_3w9bt1(luat_lcd_conf_t *conf, uint16_t data, uint16
         (data1 & 0xFF00) >> 3 | 0x10 | (data1 & 0xFF) >> 4,
         (data1 & 0xFF) << 4,
     };
-    // uart_print_async("[%02x %02x %02x]", buf[0], buf[1], buf[2]);
+
     SPI_BlockTransfer(conf->lcd_spi_device->spi_config.id, buf, NULL, sizeof(buf));
     deselect_cs(conf);
 }
@@ -137,10 +137,10 @@ static int write_cmd_data_3w9bt1(luat_lcd_conf_t *conf, const uint8_t cmd, const
         buf_index++;                                       // data后半部分必然是下一个buffer位置了
         buf[buf_index] |= data[data_index] << shift;       // 填入data后半部分
         if (shift == 0)
-            buf_index++;                    // shift == 0表示 data[data_index] 完全填满了上一个buffer位置了
-        data_index++;                       // 可以取下一个数据了
-        shift = shift == 0 ? 7 : shift - 1; // 计算下次 shift 值
-        if (buf_index == BULK_SIZE) {       // 填满了就发送一次
+            buf_index++;                                   // shift == 0表示 data[data_index] 完全填满了上一个buffer位置了
+        data_index++;                                      // 可以取下一个数据了
+        shift = shift == 0 ? 7 : shift - 1;                // 计算下次 shift 值
+        if (buf_index == BULK_SIZE) {                      // 填满了就发送一次
             SPI_BlockTransfer(conf->lcd_spi_device->spi_config.id, buf, NULL, BULK_SIZE);
             buf_index = 0;
             memset(buf, 0, BULK_SIZE);
@@ -155,7 +155,7 @@ static int write_cmd_data_3w9bt1(luat_lcd_conf_t *conf, const uint8_t cmd, const
     return 0;
 }
 
-static int write_cmd_data_3w9bt1_swap(luat_lcd_conf_t *conf, const uint8_t cmd, const uint8_t *data, int data_len) {
+static int write_color_3w9bt1(luat_lcd_conf_t *conf, const uint8_t *data, int data_len) {
     int     buf_index      = 0;
     int     data_index     = 1;
     bool    second_byte    = true;
@@ -178,14 +178,19 @@ static int write_cmd_data_3w9bt1_swap(luat_lcd_conf_t *conf, const uint8_t cmd, 
         second_byte = !second_byte;
 
         if (buf_index == BULK_SIZE) { // 填满了就发送一次
-            SPI_BlockTransfer(conf->lcd_spi_device->spi_config.id, buf, NULL, BULK_SIZE);
+            // luat_rtos_semaphore_take(spi_dma_sema, LUAT_WAIT_FOREVER);
+            // SPI_TransferEx(conf->lcd_spi_device->spi_config.id, buf, NULL, BULK_SIZE, 0, 1);
+            SPI_TransferEx(conf->lcd_spi_device->spi_config.id, buf, NULL, BULK_SIZE, 1, 0);
             buf_index = 0;
             memset(buf, 0, BULK_SIZE);
         }
     }
 
     if (buf_index) { // 剩余有数据也发送，不是9倍数的情况下，多1个byte
-        SPI_BlockTransfer(conf->lcd_spi_device->spi_config.id, buf, NULL, buf_index % 9 ? buf_index + 1 : buf_index);
+        // luat_rtos_semaphore_take(spi_dma_sema, LUAT_WAIT_FOREVER);
+        // SPI_TransferEx(conf->lcd_spi_device->spi_config.id, buf, NULL, buf_index % 9 ? buf_index + 1 : buf_index, 0,
+        // 1);
+        SPI_TransferEx(conf->lcd_spi_device->spi_config.id, buf, NULL, buf_index % 9 ? buf_index + 1 : buf_index, 1, 0);
     }
 
     deselect_cs(conf);
@@ -207,7 +212,7 @@ void lcd_draw_3w9bt1(luat_lcd_conf_t *conf, int16_t x1, int16_t y1, int16_t x2, 
     write_cmd_data_3w9bt1(conf, 0x2C, NULL, 0);
 
     // 发送颜色数据
-    write_cmd_data_3w9bt1_swap(conf, 0, (uint8_t *)color, (x2 - x1 + 1) * (y2 - y1 + 1) * sizeof(luat_color_t));
+    write_color_3w9bt1(conf, (uint8_t *)color, (x2 - x1 + 1) * (y2 - y1 + 1) * sizeof(luat_color_t));
 }
 
 int st7789v_set_direction(luat_lcd_conf_t *conf) {
@@ -230,12 +235,25 @@ int st7789v_set_direction(luat_lcd_conf_t *conf) {
     return 0;
 }
 
+int32_t spi_dma_cb(void *pData, void *pParam) {
+    return luat_rtos_semaphore_release(spi_dma_sema);
+}
+
 static void init_3w9bt1(luat_lcd_conf_t *conf) {
     size_t  i   = 0;
     uint8_t cmd = 0;
     uint8_t data[32];
     size_t  data_len = 0;
 
+    // init spi for dma
+    SPI_SetDMAEnable(conf->lcd_spi_device->spi_config.id, true);
+    SPI_SetNoBlock(conf->lcd_spi_device->spi_config.id);
+    SPI_SetCallbackFun(conf->lcd_spi_device->spi_config.id, spi_dma_cb, NULL);
+
+    // sema
+    luat_rtos_semaphore_create(&spi_dma_sema, 0); // k, bug, set 0 will give
+
+    // config the tft
     while (i < conf->opts->init_cmds_len) {
         uint16_t current = conf->opts->init_cmds[i++];
         uint8_t  type    = (current >> 8) & 0xFF;

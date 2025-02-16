@@ -5,6 +5,7 @@
 #include "luat_pwm.h"
 #include "luat_rtc.h"
 #include "luat_gpio.h"
+#include "luat_mobile.h"
 
 #include "wrapper.h"
 #include "vt_ctrl.h"
@@ -17,6 +18,7 @@
 #include "tecontrol.h"
 #include "http.h"
 #include "lcd.h"
+#include "mqtt.h"
 
 #include "cli.h"
 
@@ -129,12 +131,20 @@ static void cmd_sysinfo(int argc, char **argv) {
 static void cmd_rtc(int argc, char **argv) {
     struct tm tblock = {0};
     luat_rtc_get(&tblock);
-    uart_print("%04d/%02d/%02d/ %02d:%02d:%02d %02d\n", tblock.tm_year + 1900, tblock.tm_mon + 1, tblock.tm_mday,
-               tblock.tm_hour, tblock.tm_min, tblock.tm_sec, tblock.tm_wday);
+    uart_print("%04d/%02d/%02d/ %02d:%02d:%02d %02d\n",
+               tblock.tm_year + 1900,
+               tblock.tm_mon + 1,
+               tblock.tm_mday,
+               tblock.tm_hour,
+               tblock.tm_min,
+               tblock.tm_sec,
+               tblock.tm_wday);
 }
 
 //---------------------------------------------------------------------------------------------
 static void cmd_env(int argc, char **argv) {
+    uart_print("Signal %d\n", svSignal);
+
     uart_print("PIN COIN_IN : %d\n", luat_gpio_get(PIN_COIN_IN));
     uart_print("PIN PRIZE_MB_ONOFF : %d\n", luat_gpio_get(PIN_PRZ_MB_ONOFF));
     uart_print("PIN PRIZE_EXT_COUNT : %d\n", luat_gpio_get(PIN_PRZ_EXT_COUNT));
@@ -285,9 +295,12 @@ static void cmd_direct(int argc, char **argv) {
 
 //---------------------------------------------------------------------------------------------
 static void cmd_test1(int argc, char **argv) {
-    // mqtt_pub_status();
-    // mqtt_pub_counter();
+#if 0 // 发布数据
+    mqtt_pub_status();
+    mqtt_pub_counter();
+#endif
 
+#if 0 // 绘制测试
     uint32_t d, e;
 
     if ((Str2Dec32(argv[1], &d) == 0)) {
@@ -299,7 +312,7 @@ static void cmd_test1(int argc, char **argv) {
         return;
     }
 
-    luat_color_t *color = (luat_color_t *)malloc(240 * 320 * sizeof(luat_color_t));
+    luat_color_t *color = (luat_color_t *)MALLOC(240 * 320 * sizeof(luat_color_t));
     for (int i = 0; i < 240 * 320; i++)
         color[i] = (luat_color_t)(0xFFFF & e);
 
@@ -308,25 +321,34 @@ static void cmd_test1(int argc, char **argv) {
         lcd_draw(0, 0, 240 - 1, 320 - 1, color);
     uint64_t ms2 = soc_get_poweron_time_ms();
 
-    free(color);
+    FREE(color);
 
     uart_print("%d times, %d ms\n", d, ms2 - ms1);
+#endif
+    luat_mobile_get_sim_number(0, svPhoneNumber, sizeof(svPhoneNumber));
+    LUAT_DEBUG_PRINT("Phone: %s", svPhoneNumber);
 }
+extern int decrypt_mqtt_info(const char *encrypted, char *mqtt_server, int *mqtt_port, char *mqtt_user, char *mqtt_password);
 
-void http_cb(const char *data, const int size, HTTP_STATUS status) {
-    switch (status) {
-        case TEST_HTTP_GET_DATA:
-            uart_print_async("HTTP DATA : %s\n", data);
-            break;
-        default:
-            break;
-    }
-}
+extern void http_data_rx_cb(const char *data, const int size, HTTP_STATUS status);
 
 //---------------------------------------------------------------------------------------------
 static void cmd_test2(int argc, char **argv) {
-
-    // http_get(svHttpServer, http_cb);
+#if 1
+    char *temp = "brSGS/7BX/16BI5bxCWCxpWe+0LL3bMlxrBSUOULbHcpTbb71EDbDnyr1W7paFlfB3BRqPlFENBUuNi+7TuQUg==";
+    char  mqtt_server[32];
+    int   mqtt_port;
+    char  mqtt_user[32];
+    char  mqtt_password[32];
+    decrypt_mqtt_info(temp, mqtt_server, &mqtt_port, mqtt_user, mqtt_password);
+#endif
+#if 0
+    http_get(svHttpServer, http_data_rx_cb);
+#endif
+}
+//---------------------------------------------------------------------------------------------
+static void cmd_test3(int argc, char **argv) {
+    http_get(svHttpServer, http_data_rx_cb);
 }
 
 //---------------------------------------------------------------------------------------------
@@ -352,5 +374,6 @@ struct cli_command cli[] = {
     // {"prize",           "prize [count]",         			cmd_prize},
     {"t1", "test1", cmd_test1},
     {"t2", "test2", cmd_test2},
+    {"t3", "test3", cmd_test3},
 };
 int32_t cli_num = sizeof(cli) / sizeof(cli[0]);

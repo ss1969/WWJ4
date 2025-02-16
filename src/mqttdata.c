@@ -6,6 +6,8 @@
 #include "cJSON.h"
 
 #include "luat_debug.h"
+#include "luat_crypto.h"
+
 #include "wrapper.h"
 #include "sysvars.h"
 
@@ -14,14 +16,16 @@
 #include "fskv.h"
 #include "wgpio.h"
 #include "tecontrol.h"
+#include "gui.h"
 
 /********************** FOR PUBLISH **********************/
-#define MQTT_PUB_QOS           1
-#define MQTT_PUB_TOPIC_STATUS  "/device/%s/state"
-#define MQTT_PUB_TOPIC_COUNTER "/device/%s/data"
-#define MQTT_PUB_TOPIC_SMS     "/device/%s/sms"
+#define MQTT_PUB_QOS               1
+#define MQTT_PUB_TOPIC_STATUS      "/device/%s/state"
+#define MQTT_PUB_TOPIC_COUNTER     "/device/%s/data"
+#define MQTT_PUB_TOPIC_TICKET_SAVE "/device/%s/ticketsave"
+#define MQTT_PUB_TOPIC_SMS         "/device/%s/sms"
 
-static char *status2Json(StatusReport *report) {
+static char *status2Json(WStatusReport *report) {
     cJSON *jsonObj = cJSON_CreateObject();
 
     char timeStampStr[20] = {0};
@@ -33,30 +37,43 @@ static char *status2Json(StatusReport *report) {
     cJSON_AddStringToObject(jsonObj, "imsi", report->imsi);
     cJSON_AddStringToObject(jsonObj, "iccid", report->iccid);
     cJSON_AddStringToObject(jsonObj, "phone", report->phone);
-    cJSON_AddNumberToObject(jsonObj, "ticketDirectOut", report->ticketDirectOut);
     cJSON_AddNumberToObject(jsonObj, "signal", report->signal);
     cJSON_AddNumberToObject(jsonObj, "pinCoinerInit", report->pinCoinerInit);
     cJSON_AddNumberToObject(jsonObj, "pinMbOnoffInit", report->pinMbOnoffInit);
     cJSON_AddNumberToObject(jsonObj, "pinExtCountInit", report->pinExtCountInit);
     cJSON_AddNumberToObject(jsonObj, "errorCode", report->errorCode);
+    cJSON_AddStringToObject(jsonObj, "errorMessage", report->errorMessage);
 
     char *jsonOut = cJSON_PrintUnformatted(jsonObj);
     cJSON_Delete(jsonObj);
     return jsonOut;
 }
 
-static char *counters2Json(CounterReport *report) {
+static char *counters2Json(WCounterReport *report) {
     cJSON *jsonObj = cJSON_CreateObject();
 
-    char timeStampStr[20] = {0};
-    snprintf(timeStampStr, sizeof(timeStampStr), "0x%" PRIx64, SYSTICK());
-    cJSON_AddStringToObject(jsonObj, "timeStamp", timeStampStr);
+    cJSON_AddStringToObject(jsonObj, "dataFlag", report->dataFlag);
     cJSON_AddStringToObject(jsonObj, "lastCommandTS", report->lastCommandTS);
     cJSON_AddNumberToObject(jsonObj, "coin", report->coin);
     cJSON_AddNumberToObject(jsonObj, "prize", report->prize);
     cJSON_AddNumberToObject(jsonObj, "ticketWantOut", report->ticketWantOut);
     cJSON_AddNumberToObject(jsonObj, "ticketRealOut", report->ticketRealOut);
     cJSON_AddNumberToObject(jsonObj, "ticketEmulated", report->ticketEmulated);
+
+    char *jsonOut = cJSON_PrintUnformatted(jsonObj);
+    cJSON_Delete(jsonObj);
+    return jsonOut;
+}
+
+static char *ticketsave2Json(WTicketSave *report) {
+    cJSON *jsonObj = cJSON_CreateObject();
+
+    char timeStampStr[20] = {0};
+    snprintf(timeStampStr, sizeof(timeStampStr), "0x%" PRIx64, SYSTICK());
+    cJSON_AddStringToObject(jsonObj, "timeStamp", timeStampStr);
+    cJSON_AddStringToObject(jsonObj, "userID", report->userID);
+    cJSON_AddStringToObject(jsonObj, "ticket", report->ticketAdd);
+    cJSON_AddNumberToObject(jsonObj, "ticketDirectOut", report->ticketDirectOut);
 
     char *jsonOut = cJSON_PrintUnformatted(jsonObj);
     cJSON_Delete(jsonObj);
@@ -76,7 +93,7 @@ static char *sms2Json(char *time, char *phone, char *pdu) {
 }
 
 void mqtt_pub_status(void) {
-    StatusReport sts;
+    WStatusReport sts;
 
     sts.hardwareVersion = HARDWARE_VERSION;
     sts.firmwareVersion = SOFTWARE_VERSION;
@@ -84,12 +101,12 @@ void mqtt_pub_status(void) {
     strcpy(sts.imsi, svIMSI);
     strcpy(sts.iccid, svICCID);
     strcpy(sts.phone, svPhoneNumber);
-    sts.ticketDirectOut = svTicketDirectOut;
     sts.signal          = svSignal;
-    sts.pinCoinerInit   = 0; // k
-    sts.pinMbOnoffInit  = 0; // k
-    sts.pinExtCountInit = 0; // k
-    sts.errorCode       = 0; // k
+    sts.pinCoinerInit   = 0;      // k
+    sts.pinMbOnoffInit  = 0;      // k
+    sts.pinExtCountInit = 0;      // k
+    sts.errorCode       = 0;      // k
+    strcpy(sts.errorMessage, ""); // k
 
     char *json = status2Json(&sts);
     if (json) {
@@ -100,8 +117,9 @@ void mqtt_pub_status(void) {
 }
 
 void mqtt_pub_counter(void) {
-    CounterReport cnt;
+    WCounterReport cnt;
 
+    strcpy(cnt.dataFlag, svDataFlag);
     strcpy(cnt.lastCommandTS, svLastCommandExecuted);
     cnt.coin           = svCounterC;
     cnt.prize          = svCounterD;
@@ -117,6 +135,21 @@ void mqtt_pub_counter(void) {
     }
 }
 
+void mqtt_pub_ticket_save(int userID, int ticketAdd, int ticketDirectOut) {
+    WTicketSave cnt;
+
+    cnt.userID          = userID;
+    cnt.ticketAdd       = ticketAdd;
+    cnt.ticketDirectOut = ticketDirectOut;
+
+    char *json = counters2Json(&cnt);
+    if (json) {
+        char topic[64];
+        sprintf(topic, MQTT_PUB_TOPIC_TICKET_SAVE, svSystemID);
+        mqtt_publish_data(topic, json, MQTT_PUB_QOS);
+    }
+}
+
 void mqtt_pub_sms(char *time, char *phone, char *pdu) {
     char *json = sms2Json(time, phone, pdu);
     if (json) {
@@ -128,13 +161,14 @@ void mqtt_pub_sms(char *time, char *phone, char *pdu) {
 
 /********************** FOR SUBSCRIBE **********************/
 enum _MQTT_COMMAND_IDS {
-    MQTT_CMD_INSERTCOIN   = 1,
-    MQTT_CMD_RESETCOUNTER = 2,
-    MQTT_CMD_REBOOT       = 99,
+    MQTT_CMD_INSERTCOIN      = 1,
+    MQTT_CMD_RESETCOUNTER    = 2,
+    MQTT_CMD_SETDIRECTTICKET = 3,
+    MQTT_CMD_REBOOT          = 99,
 } MQTT_COMMAND_IDS;
 
 /* Mqtt的json数据和配置结构体来回转换 */
-static int json2Config(char *jsonIn, MqttConfig *config) {
+static int json2Config(char *jsonIn, WConfig *config) {
     // LUAT_DEBUG_PRINT("json2Config: %s", jsonIn);
 
     cJSON *json = cJSON_Parse(jsonIn);
@@ -161,14 +195,6 @@ static int json2Config(char *jsonIn, MqttConfig *config) {
     }
     strcpy(config->firmwareUrl, item->valuestring);
 
-    item = cJSON_GetObjectItem(json, "resourceUrl");
-    if (!item || !cJSON_IsString(item)) {
-        LUAT_DEBUG_PRINT("Invalid or missing 'resourceUrl' field.");
-        cJSON_Delete(json);
-        return -1;
-    }
-    strcpy(config->resourceUrl, item->valuestring);
-
     item = cJSON_GetObjectItem(json, "systemMode");
     if (!item || !cJSON_IsNumber(item)) {
         LUAT_DEBUG_PRINT("Invalid or missing 'systemMode' field.");
@@ -184,14 +210,6 @@ static int json2Config(char *jsonIn, MqttConfig *config) {
         return -1;
     }
     strcpy(config->payUrl, item->valuestring);
-
-    item = cJSON_GetObjectItem(json, "saveTicketUrl");
-    if (!item || !cJSON_IsString(item)) {
-        LUAT_DEBUG_PRINT("Invalid or missing 'saveTicketUrl' field.");
-        cJSON_Delete(json);
-        return -1;
-    }
-    strcpy(config->saveTicketUrl, item->valuestring);
 
     item = cJSON_GetObjectItem(json, "coinPulseWidth");
     if (!item || !cJSON_IsNumber(item)) {
@@ -257,19 +275,11 @@ static int json2Config(char *jsonIn, MqttConfig *config) {
     }
     config->direction = item->valueint;
 
-    item = cJSON_GetObjectItem(json, "ticketDirectOut");
-    if (!item || !cJSON_IsNumber(item)) {
-        LUAT_DEBUG_PRINT("Invalid or missing 'ticketDirectOut' field.");
-        cJSON_Delete(json);
-        return -1;
-    }
-    config->ticketDirectOut = item->valueint;
-
     cJSON_Delete(json);
     return 0;
 }
 
-static int json2Command(char *jsonIn, Command *cmd) {
+static int json2Command(char *jsonIn, WCommand *cmd) {
     cJSON *json = cJSON_Parse(jsonIn);
     if (!json) {
         LUAT_DEBUG_PRINT("JSON parse error: %s", cJSON_GetErrorPtr());
@@ -282,13 +292,7 @@ static int json2Command(char *jsonIn, Command *cmd) {
         cJSON_Delete(json);
         return -1;
     }
-    errno          = 0;
-    cmd->timeStamp = strtoull(item->valuestring, NULL, 16);
-    if (errno != 0) {
-        LUAT_DEBUG_PRINT("Error: Invalid 'timeStamp' format or out of range.");
-        cJSON_Delete(json);
-        return -1;
-    }
+    strcpy(cmd->timeStamp, item->valuestring);
 
     item = cJSON_GetObjectItem(json, "commandId");
     if (!item || !cJSON_IsNumber(item)) {
@@ -310,6 +314,41 @@ static int json2Command(char *jsonIn, Command *cmd) {
     return 0;
 }
 
+static int json2Customer(char *jsonIn, WCustomer *info) {
+    cJSON *json = cJSON_Parse(jsonIn);
+    if (!json) {
+        LUAT_DEBUG_PRINT("JSON parse error: %s", cJSON_GetErrorPtr());
+        return -1;
+    }
+
+    cJSON *item = cJSON_GetObjectItem(json, "userPortrait");
+    if (!item || !cJSON_IsString(item)) {
+        LUAT_DEBUG_PRINT("Invalid or missing 'userPortrait' field.");
+        cJSON_Delete(json);
+        return -1;
+    }
+    strcpy(info->userPortrait, item->valuestring);
+
+    item = cJSON_GetObjectItem(json, "nickName");
+    if (!item || !cJSON_IsString(item)) {
+        LUAT_DEBUG_PRINT("Invalid or missing 'nickName' field.");
+        cJSON_Delete(json);
+        return -1;
+    }
+    strcpy(info->nickName, item->valuestring);
+
+    item = cJSON_GetObjectItem(json, "userID");
+    if (!item || !cJSON_IsNumber(item)) {
+        LUAT_DEBUG_PRINT("Invalid or missing 'userID' field.");
+        cJSON_Delete(json);
+        return -1;
+    }
+    info->userID = item->valueint;
+
+    cJSON_Delete(json);
+    return 0;
+}
+
 void mqtt_data_cb_config(char *data, uint32_t len) {
     /* 检查是否收到长度0的 config，这是解绑 */
     if (len == 0) {
@@ -323,8 +362,8 @@ void mqtt_data_cb_config(char *data, uint32_t len) {
     }
 
     /* 正常命令 */
-    bool       needReboot = false;
-    MqttConfig config;
+    bool    needReboot = false;
+    WConfig config;
     if (json2Config(data, &config) != 0) {
         LUAT_DEBUG_PRINT("mqtt_data_cb_config() ERROR!!!! ");
         return;
@@ -334,10 +373,8 @@ void mqtt_data_cb_config(char *data, uint32_t len) {
     LUAT_DEBUG_PRINT("/device/+/config RECEIVED!");
     LUAT_DEBUG_PRINT("Firmware Version: %d", config.firmwareVersion);
     LUAT_DEBUG_PRINT("Firmware URL: %s", config.firmwareUrl);
-    LUAT_DEBUG_PRINT("Resource URL: %s", config.resourceUrl);
     LUAT_DEBUG_PRINT("System Mode: %d", config.systemMode);
     LUAT_DEBUG_PRINT("Pay URL: %s", config.payUrl);
-    LUAT_DEBUG_PRINT("Save Ticket URL: %s", config.saveTicketUrl);
     LUAT_DEBUG_PRINT("Coin Pulse Width: %d", config.coinPulseWidth);
     LUAT_DEBUG_PRINT("Ticket Pulse Width: %d", config.ticketPulseWidth);
     LUAT_DEBUG_PRINT("Coin Pulse Low: %d", config.coinPulseLow);
@@ -346,7 +383,6 @@ void mqtt_data_cb_config(char *data, uint32_t len) {
     LUAT_DEBUG_PRINT("Ticket Pulse High: %d", config.ticketPulseHigh);
     LUAT_DEBUG_PRINT("Coin Per Play: %d", config.coinPerPlay);
     LUAT_DEBUG_PRINT("Direction: %d", config.direction);
-    LUAT_DEBUG_PRINT("TicketDirectOut: %d", config.ticketDirectOut);
 
     // 需要重启的
     if (config.systemMode != svDeviceType) {
@@ -374,7 +410,6 @@ void mqtt_data_cb_config(char *data, uint32_t len) {
     // fskv_save_async(FSKV_EVT_COIN_PERPLAY_BTN2, config.coinPerPlay2);
     fskv_save_async(FSKV_EVT_DEV_SCREEN_DIR, config.direction);
     svDeviceDirection = config.direction;
-    gpio_setDirectOut(config.ticketDirectOut);
 
     // 如果版本更高则升级
     // 需要排除https开头，因为现在https开头的直接要挂
@@ -382,9 +417,9 @@ void mqtt_data_cb_config(char *data, uint32_t len) {
         // initialize OTA
         LUAT_DEBUG_PRINT("Start OTA: new version %d", config.firmwareVersion);
         gpio_deinit();
-        mqtt_deinit();
-        extern void ota_taskinit(const char *firmware_url);
-        ota_taskinit(config.firmwareUrl);
+        mqtt_task_deinit();
+        extern void ota_task_init(const char *firmware_url);
+        ota_task_init(config.firmwareUrl);
         return;
     }
     else {
@@ -404,7 +439,7 @@ void mqtt_data_cb_command(char *data, uint32_t len) {
     if (len == 0)
         return;
 
-    Command cmd;
+    WCommand cmd;
 
     if (json2Command(data, &cmd) != 0) {
         LUAT_DEBUG_PRINT("Mqtt_DataCallbackCommand() ERROR!!!! ");
@@ -419,14 +454,34 @@ void mqtt_data_cb_command(char *data, uint32_t len) {
         } break;
         case MQTT_CMD_RESETCOUNTER: {
             strcpy(svLastCommandExecuted, cmd.timeStamp);
-            // k
+            luat_crypto_trng(svDataFlag, sizeof(svDataFlag));
         } break;
+        case MQTT_CMD_SETDIRECTTICKET: {
+            int dttimeout = strtoul(cmd.commandParam, NULL, 16);
+            // k 这里要启动倒计时定时器，完成后标志设0
+            svTicketDirectOut = 1;
+            gui_update_ticket_save(dttimeout);
+        }
         case MQTT_CMD_REBOOT: {
             strcpy(svLastCommandExecuted, cmd.timeStamp);
             LUAT_DEBUG_PRINT("Reboot required!");
             luat_os_reboot(0);
         } break;
     }
+}
+
+void mqtt_data_cb_customer(char *data, uint32_t len) {
+    if (len == 0)
+        return;
+
+    WCustomer info;
+
+    if (json2Customer(data, &info) != 0) {
+        LUAT_DEBUG_PRINT("Mqtt_DataCallbackCommand() ERROR!!!! ");
+        return;
+    }
+
+    gui_update_customer(&info);
 }
 
 /* clear json ptr */
@@ -456,7 +511,7 @@ void Testbench()
         "\"direction\":2"
         "}";
 
-    MqttConfig config = {0}; // 初始化结构体
+    WConfig config = {0}; // 初始化结构体
     if (json2Config(&json1, &config) == 0) {
         LUAT_DEBUG_PRINT("Parsed firmware config successfully.");
         LUAT_DEBUG_PRINT("Firmware Version: %d", config.firmwareVersion);
@@ -485,18 +540,18 @@ void Testbench()
         "\"commandParam\":\"test\""
         "}";
 
-    Command command = {0}; // 初始化结构体
+    WCommand command = {0}; // 初始化结构体
     if (json2Command(&json2, &command) == 0) {
         LUAT_DEBUG_PRINT("Parsed command successfully.");
         LUAT_DEBUG_PRINT("Time Stamp: 0x%016llX", command.timeStamp);
-        LUAT_DEBUG_PRINT("Command ID: %d", command.commandId);
-        LUAT_DEBUG_PRINT("Command Param: %s", command.commandParam);
+        LUAT_DEBUG_PRINT("WCommand ID: %d", command.commandId);
+        LUAT_DEBUG_PRINT("WCommand Param: %s", command.commandParam);
     } else {
         LUAT_DEBUG_PRINT("Failed to parse command.");
     }
 
     // 测试组装第三个 JSON（status2Json）
-    StatusReport statusReportData = {
+    WStatusReport statusReportData = {
         .hardwareVersion = 1,
         .firmwareVersion = 1,
         .imei = "123456789012345",
@@ -517,7 +572,7 @@ void Testbench()
     }
 
     // 测试组装第四个 JSON（counters2Json）
-    CounterReport coinPrizeReportData = {
+    WCounterReport coinPrizeReportData = {
         .lastCommandTS = "123",
         .coin = 12345,
         .prize = 12345,

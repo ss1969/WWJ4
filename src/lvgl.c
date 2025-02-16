@@ -12,10 +12,12 @@
 
 #include "lcd.h"
 #include "ft6236.h"
+#include "wrapper.h"
 
 #include "lvgl9\lvgl.h"
 #include "lvgl9\demos\lv_demos.h"
 #include "lvgl9\demos\widgets\lv_demo_widgets.h"
+
 #define SPI_LCD_RAM_CACHE_MAX (LCD_WIDTH * LCD_HEIGHT)
 
 #define LVGL_FLUSH_EVENT    1
@@ -74,14 +76,12 @@ static void lvgl_main_routine(void *param) {
     lv_display_t *disp = lv_display_create(LCD_WIDTH, LCD_HEIGHT);
     lv_display_set_flush_cb(disp, display_flush);
 
-    draw_buf = malloc(LCD_WIDTH * LVGL_FLUSH_BUF_LINE * sizeof(lv_color_t));
-    LUAT_DEBUG_ASSERT(draw_buf != NULL, "allocate lvgl buffer fail %dB",
-                      LCD_WIDTH * LVGL_FLUSH_BUF_LINE * sizeof(lv_color_t));
-    lv_display_set_buffers(disp, draw_buf, NULL, LCD_WIDTH * LVGL_FLUSH_BUF_LINE * sizeof(lv_color_t),
-                           LV_DISPLAY_RENDER_MODE_PARTIAL);
+    draw_buf = MALLOC(LCD_WIDTH * LVGL_FLUSH_BUF_LINE * sizeof(lv_color_t));
+    LUAT_DEBUG_ASSERT(draw_buf != NULL, "allocate lvgl buffer fail %dB", LCD_WIDTH * LVGL_FLUSH_BUF_LINE * sizeof(lv_color_t));
+    lv_display_set_buffers(disp, draw_buf, NULL, LCD_WIDTH * LVGL_FLUSH_BUF_LINE * sizeof(lv_color_t), LV_DISPLAY_RENDER_MODE_PARTIAL);
 
     /* below in lv_port_indev_template.c lv_port_indev_init() */
-    tp_taskinit();
+    tp_task_init();
     indev_touchpad = lv_indev_create();
     lv_indev_set_type(indev_touchpad, LV_INDEV_TYPE_POINTER);
     lv_indev_set_read_cb(indev_touchpad, touchpad_read);
@@ -99,6 +99,6 @@ static void lvgl_main_routine(void *param) {
     }
 }
 
-void lvgl_taskinit(void) {
+void lvgl_task_init(void) {
     luat_rtos_task_create(&lvgl_flush_task, 8 * 1024, 90, "lvgl", lvgl_main_routine, NULL, 16);
 }

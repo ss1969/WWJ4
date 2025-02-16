@@ -3,6 +3,6 @@
 
 bool tp_is_pressed(void);
 void tp_get_data(int16_t *x, int16_t *y);
-void tp_taskinit(void);
+void tp_task_init(void);
 
 #endif

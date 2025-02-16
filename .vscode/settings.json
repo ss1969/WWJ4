@@ -74,7 +74,25 @@
         "chrono": "c",
         "xlocale": "c",
         "regex": "c",
-        "xstring": "c"
+        "xstring": "c",
+        "span": "c",
+        "vector": "c",
+        "xutility": "c",
+        "luat_mobile.h": "c",
+        "luat_crypto.h": "c",
+        "lcd.h": "c",
+        "cipher.h": "c",
+        "bitset": "c",
+        "initializer_list": "c",
+        "deque": "c",
+        "iterator": "c",
+        "list": "c",
+        "queue": "c",
+        "stack": "c",
+        "xhash": "c",
+        "xtree": "c",
+        "format": "c",
+        "cli.h": "c"
     },
     "files.autoSave": "onFocusChange"
 }

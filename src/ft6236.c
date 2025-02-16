@@ -116,6 +116,6 @@ static void touchpad_main_routine(void *param) {
     }
 }
 
-void tp_taskinit(void) {
+void tp_task_init(void) {
     luat_rtos_task_create(&task_tp_handle, 2048, 20, "task_tp", touchpad_main_routine, NULL, 16);
 }

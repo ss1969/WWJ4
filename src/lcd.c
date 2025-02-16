@@ -5,6 +5,7 @@
 #include "luat_spi.h"
 #include "luat_lcd.h"
 #include "luat_gpio.h"
+#include "soc_spi.h"
 
 #include "lcd.h"
 #include "st7789v.h"
@@ -53,21 +54,3 @@ void lcd_init(void) {
 void lcd_draw(int16_t x1, int16_t y1, int16_t x2, int16_t y2, luat_color_t *color) {
     lcd_draw_3w9bt1(&lcd_conf, x1, y1, x2, y2, color);
 }
-
-#if 0 // TESTBENCH
-static void task_test_lcd(void *param) {
-    lcd_init();
-
-    luat_lcd_draw_line(&lcd_conf, 20, 35, 140, 35, 0x001F);
-    luat_lcd_draw_rectangle(&lcd_conf, 20, 40, 120, 70, 0xF800);
-    luat_lcd_draw_circle(&lcd_conf, 60, 60, 10, 0x0CE0);
-    luat_lcd_flush(&lcd_conf);
-    while (true) {
-        luat_rtos_task_sleep(1000);
-    }
-}
-
-void lcd_taskinit(void) {
-    luat_rtos_task_create(&task_lcd_handle, 4096, 20, "lcd", task_test_lcd, NULL, 0);
-}
-#endif

@@ -15,10 +15,12 @@
 #include "sysvars.h"
 
 // 配置
-static char MQTT_HOST[256] = "111.231.206.29";
-static int  MQTT_PORT      = 9883;
-static char USERNAME[32]   = "admin";
-static char PASSWORD[32]   = "fkww_168";
+static char MQTT_HOST[32] = {0}; // "mq.catchtoy.cn";
+static int  MQTT_PORT     = 0;   // 9883;
+static char USERNAME[32]  = {0}; // "admin";
+static char PASSWORD[32]  = {0}; // "fkww_168";
+
+static bool mqtt_inited = false;
 
 // 结构
 typedef struct _MQTT_SUB_ACTIONS_DEF {
@@ -38,6 +40,7 @@ typedef struct _MQTT_MSG {
 const char *MQTT_SUB_TOPIC_PATTERNS[] = {
     "/device/%s/config",
     "/device/%s/command",
+    "/device/%s/customer",
 };
 
 static MQTT_SUB_ACTIONS_DEF MQTT_SUB_ACTIONS[] = {
@@ -49,15 +52,19 @@ static MQTT_SUB_ACTIONS_DEF MQTT_SUB_ACTIONS[] = {
         .qosLevel    = 1,
         .DataHandler = mqtt_data_cb_command,
     },
+    {
+        .qosLevel    = 1,
+        .DataHandler = mqtt_data_cb_customer,
+    },
 };
 #define MQTT_SUB_ACTIONS_DEF_COUNT (sizeof(MQTT_SUB_ACTIONS) / sizeof(MQTT_SUB_ACTIONS_DEF))
 
 static void (*MQTT_PUB_AFTERCONNECT[])() = {mqtt_pub_status, mqtt_pub_counter};
 
 // 变量
-static luat_rtos_task_handle task_mqtt_handle;
-static luat_mqtt_ctrl_t     *mqttHandle;
-static luat_rtos_mutex_t     mqtt_sema_puback;
+static luat_rtos_task_handle task_mqtt_handle = NULL;
+static luat_mqtt_ctrl_t     *mqttHandle       = NULL;
+static luat_rtos_mutex_t     mqtt_sema_puback = NULL;
 
 // 辅助函数
 static const char *mqtt_get_msg_name(uint16_t msg) {
@@ -103,11 +110,11 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event) {
 
     switch (event) {
         case MQTT_MSG_CONNACK: {
-            LUAT_DEBUG_PRINT("MQTT connected successfully.");
+            LOG("MQTT connected successfully.");
             // 订阅
             for (int i = 0; i < MQTT_SUB_ACTIONS_DEF_COUNT; i++) {
                 mqtt_subscribe(&ctrl->broker, MQTT_SUB_ACTIONS[i].topicString, &msgId, MQTT_SUB_ACTIONS[i].qosLevel);
-                LUAT_DEBUG_PRINT("Subscribing to topic: %s, msgID %d", MQTT_SUB_ACTIONS[i].topicString, msgId);
+                LOG("Subscribing to topic: %s, msgID %d", MQTT_SUB_ACTIONS[i].topicString, msgId);
             }
             // 连接后的主动发布
             for (int i = 0; i < sizeof(MQTT_PUB_AFTERCONNECT) / sizeof(MQTT_PUB_AFTERCONNECT[0]); i++) {
@@ -143,7 +150,8 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event) {
             // }
             break;
         case MQTT_MSG_DISCONNECT: {
-            LUAT_DEBUG_PRINT("MQTT disconnected. Attempting to reconnect...");
+            LOG("MQTT disconnected. Attempting to reconnect...");
+            luat_rtos_task_sleep(5 * 1000);
             if (MQTT_AUTOCON) {
                 luat_mqtt_reconnect(ctrl);
             }
@@ -151,7 +159,7 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event) {
         }
         //=================================
         case MQTT_MSG_RELEASE:
-            LUAT_DEBUG_PRINT("MQTT Release message received.");
+            LOG("MQTT Release message received.");
             break;
         case MQTT_MSG_TCP_TX_DONE: // for tx data done, used when qos==0 as a
                                    // sign of send.
@@ -162,13 +170,13 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event) {
             break;
         case MQTT_MSG_RECONNECT: {
             if (MQTT_AUTOCON) {
-                LUAT_DEBUG_PRINT("MQTT auto-reconnect triggered.");
+                LOG("MQTT auto-reconnect triggered.");
                 luat_mqtt_reconnect(ctrl);
             }
             break;
         }
         case MQTT_MSG_CLOSE: {
-            LUAT_DEBUG_PRINT("MQTT connection closed. Attempting manual reconnect...");
+            LOG("MQTT connection closed. Attempting manual reconnect...");
             if (!MQTT_AUTOCON) {
                 ret = luat_mqtt_reconnect(ctrl);
                 if (ret) {
@@ -196,8 +204,6 @@ static void mqtt_init_params(const char *host, int port, const char *username, c
         strcpy(USERNAME, username);
     if (password != NULL)
         strcpy(PASSWORD, password);
-
-    LUAT_DEBUG_PRINT("MQTT parameters initialized: host=%s, port=%d", MQTT_HOST, MQTT_PORT);
 }
 
 // MQTT 主任务
@@ -207,20 +213,16 @@ static void mqtt_main_routine(void *param) {
 
     // topics
     for (int i = 0; i < MQTT_SUB_ACTIONS_DEF_COUNT; i++) {
-        snprintf(MQTT_SUB_ACTIONS[i].topicString, sizeof(MQTT_SUB_ACTIONS[i].topicString), MQTT_SUB_TOPIC_PATTERNS[i],
-                 MQTT_DEVICE_ID);
+        snprintf(MQTT_SUB_ACTIONS[i].topicString, sizeof(MQTT_SUB_ACTIONS[i].topicString), MQTT_SUB_TOPIC_PATTERNS[i], MQTT_DEVICE_ID);
     }
 
     // handle
     mqttHandle = (luat_mqtt_ctrl_t *)MALLOC(sizeof(luat_mqtt_ctrl_t));
     ret        = luat_mqtt_init(mqttHandle, NW_ADAPTER_INDEX_LWIP_GPRS);
     if (ret) {
-        LUAT_DEBUG_PRINT("Failed to initialize MQTT: %d", ret);
+        LOG("Failed to initialize MQTT: %d", ret);
         return;
     }
-
-    // connect parameters
-    mqtt_init_params(NULL, NULL, NULL, NULL); // k 以后改成从https服务器获取
 
     // start connect
     luat_mqtt_connopts_t opts = {0};
@@ -245,10 +247,10 @@ static void mqtt_main_routine(void *param) {
 
     // callback
     luat_mqtt_set_cb(mqttHandle, mqtt_main_callback);
-    LUAT_DEBUG_PRINT("Connecting to MQTT...");
+    LOG("Connecting to MQTT...");
     ret = luat_mqtt_connect(mqttHandle);
     if (ret) {
-        LUAT_DEBUG_PRINT("Failed to connect to MQTT: %d", ret);
+        LOG("Failed to connect to MQTT: %d", ret);
         luat_mqtt_close_socket(mqttHandle);
         FREE(mqttHandle);
         return;
@@ -286,17 +288,6 @@ static void mqtt_main_routine(void *param) {
     luat_rtos_task_delete(task_mqtt_handle);
 }
 
-// 动态修改 MQTT 连接参数并重连
-void mqtt_update_reconnect(const char *host, int port, const char *username, const char *password) {
-    LUAT_DEBUG_PRINT("Updating MQTT parameters...");
-    mqtt_init_params(host, port, username, password);
-
-    if (mqttHandle) {
-        luat_mqtt_close_socket(mqttHandle);
-        luat_mqtt_reconnect(mqttHandle);
-    }
-}
-
 // 发布数据
 int mqtt_publish_data(char *topic, char *json, int qos) {
     MQTT_MSG *msg = (MQTT_MSG *)LUAT_MEM_MALLOC(sizeof(MQTT_MSG));
@@ -307,20 +298,41 @@ int mqtt_publish_data(char *topic, char *json, int qos) {
     return luat_rtos_message_send(task_mqtt_handle, 0, msg);
 }
 
-void mqtt_taskinit(void) {
-    luat_rtos_semaphore_create(&mqtt_sema_puback, 1);
-    luat_rtos_task_create(&task_mqtt_handle, 8 * 1024, 10, "task_mqtt", mqtt_main_routine, NULL, 16);
+void mqtt_task_init(const char *host, const int port, const char *username, const char *password) {
+    mqtt_init_params(host, port, username, password);
+    if (!mqtt_inited) {
+        LOG("MQTT init host: %s:%d", MQTT_HOST, MQTT_PORT);
+
+        luat_rtos_semaphore_create(&mqtt_sema_puback, 0); // k bug, 0 will give at initial
+        luat_rtos_task_create(&task_mqtt_handle, 8 * 1024, 10, "task_mqtt", mqtt_main_routine, NULL, 16);
+        mqtt_inited = true;
+    }
+    else {
+        LOG("MQTT Update host: %s:%d", MQTT_HOST, MQTT_PORT);
+
+        if (mqttHandle) {
+            luat_mqtt_close_socket(mqttHandle);
+            luat_mqtt_reconnect(mqttHandle);
+        }
+    }
 }
 
-void mqtt_deinit(void) {
+void mqtt_task_deinit(void) {
     uint16_t msgId;
     for (int i = 0; i < MQTT_SUB_ACTIONS_DEF_COUNT; i++) {
         mqtt_unsubscribe(&mqttHandle->broker, MQTT_SUB_ACTIONS[i].topicString, &msgId);
-        LUAT_DEBUG_PRINT("Unsubscribing to topic: %s, msgID %d", MQTT_SUB_ACTIONS[i].topicString, msgId);
+        LOG("Unsubscribing to topic: %s, msgID %d", MQTT_SUB_ACTIONS[i].topicString, msgId);
     }
-    luat_rtos_semaphore_delete(mqtt_sema_puback);
-    luat_rtos_task_suspend(task_mqtt_handle);
-    luat_rtos_task_delete(task_mqtt_handle);
 
-    LUAT_DEBUG_PRINT("mqtt_deinit end");
+    if (mqtt_sema_puback) {
+        luat_rtos_semaphore_delete(mqtt_sema_puback);
+        mqtt_sema_puback = NULL;
+    }
+    if (task_mqtt_handle) {
+        luat_rtos_task_suspend(task_mqtt_handle);
+        luat_rtos_task_delete(task_mqtt_handle);
+        task_mqtt_handle = NULL;
+    }
+
+    LUAT_DEBUG_PRINT("mqtt_task_deinit end");
 }

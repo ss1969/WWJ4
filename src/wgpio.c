@@ -292,7 +292,7 @@ static void gpio_dev_init(void) {
     LUAT_DEBUG_PRINT("gpio_init end");
 }
 
-void gpio_taskinit(void) {
+void gpio_task_init(void) {
     gpio_dev_init();
     luat_rtos_timer_create(&timer0);
     luat_rtos_timer_start(timer0, svCoinSw2, 1, timer0_callback_coiner, NULL);

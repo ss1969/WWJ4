@@ -19,6 +19,7 @@ uint32_t svErrorCount      = 0;           /* 错误计数 */
 char     svServerConnected = 0;           /* 是否连接了服务器 */
 short    svPing;                          /* 心跳回应毫秒值 */
 char     svLastCommandExecuted[32] = {0}; /* 最后一次执行的命令的TS */
+char     svDataFlag[16]            = {0}; /* 用于服务器计算计数器的TS */
 
 /* vars 系统设置信息 */
 char    svSystemID[32]    = {0}; /* CHIP ID */
@@ -30,7 +31,8 @@ uint8_t svDeviceType;            /* 1 标准，2 代替彩票机 */
 uint8_t svDeviceDirection;       /* 刷卡头开口方向, 1开口向上（默认选项），然后是向下，向左，向右 */
 uint8_t svDeviceStatus;          /* 设备状态 0 正常 1 未初始化 2 未绑定 */
 char    svUrlWXPay[256] = {0};   /* 微信支付地址 */
-char   *svHttpServer    = "http://qthd.qtdevice.cn/proxy/api/device/card/socket.do";
+// char   *svHttpServer    = "http://live.catchtoy.cn/qterp/mbase/api/ext/mqttInfo";
+char *svHttpServer = "http://test.live.catchtoy.cn/qterp/mbase/api/ext/mqttInfo";
 
 uint8_t svCoinSw2;               /* 投币脉冲宽度 */
 uint8_t svCoinPulseWidthInLow;   /* COIN PIN脉冲宽度判断下限 */

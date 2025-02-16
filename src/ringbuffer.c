@@ -3,11 +3,11 @@
 
 #define min(a, b) ((a) < (b)) ? (a) : (b)
 
-void takeMutex(RINGBUFFER_T *r) {
+static inline void takeMutex(RINGBUFFER_T *r) {
     luat_rtos_semaphore_take(r->mutex, 0xFFFFFFFF);
 }
 
-void giveMutex(RINGBUFFER_T *r) {
+static inline void giveMutex(RINGBUFFER_T *r) {
     luat_rtos_semaphore_release(r->mutex);
 }
 
@@ -25,7 +25,7 @@ void RingBufInit(RINGBUFFER_T *r, uint8_t *buffer, uint32_t size, int protect) {
         // there is a mutex holder, as priority inheritance makes no sense for an
         // interrupts, only tasks. */
         // configASSERT( !( ( pxQueue->uxQueueType == queueQUEUE_IS_MUTEX ) && ( pxQueue->pxMutexHolder != NULL ) ) );
-        luat_rtos_semaphore_create(&r->mutex, 0);
+        luat_rtos_semaphore_create(&r->mutex, 0); // k bug
     }
 }
 

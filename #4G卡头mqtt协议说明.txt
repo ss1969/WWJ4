@@ -7,21 +7,32 @@ v3 20250119
 v4 20250121
 	解绑流程改变，增加retain说明，状态增加手机号，ticketDirectOut统一，数据上传1说明
 	cmd 改说明文字
-v5 增加遗嘱，命令去掉命令3，改变数据上报模式为卡头不保存累计值模式
+v5 20250208
+	增加遗嘱，命令去掉命令3，改变数据上报模式为卡头不保存累计值模式，增加存票数据
+v6 20250211
+	确定加密方式、细节修正。
 
 # 备注
 mqtt qos 除非特别说明，使用 level 1（最少送达1次）
 配置是json，如果没写的配置卡头使用默认值；但是标必备的条目不能漏掉
 
 #0 启动和绑定
-	首先设备固件写死一个ip地址用于获取mqtt的链接地址：mqtt://ip:port
-	用户名和密码暂时先写死，后期再考虑怎么加强
+	首先设备固件写死一个 url 地址用于获取mqtt的链接地址。
+	明文格式为：mqtt,111.231.206.29,9883,admin,fkww_168
+	加密方式：AES-256-CBC
+	PADDING：PKCS7
+	加密流程：随机生成 16 byte IV，加密后，得到密文，长度n；
+	把 IV 拼在密文前面，组成一个新 char[]，长度 n+16
+	进行base64处理，以便可以按txt文字放置在网站上。
+	密钥为   IcG6OnMCLgii7McbzuTtLNSbS7XU4F9G
+
 	绑定流程：
-		未绑定状态：设备直通投币和彩票，但是不进行计数。
-		步骤1：设备通过http post上传序列号、型号以及其他必须数据，然后自行监听对应mqtt topic。
+		未绑定状态：设备直通投币和彩票，但是不进行计数，显示一个用来绑定的二维码。
+			二维码内容：文本格式SN, 4e453432310fc03e45ff
+		步骤1：自行监听对应mqtt topic，等小程序绑定完成。
 		步骤2：服务器发布配置信息到对应topic，即完成。设备自动监听后实施。
 		步骤3：服务器发布重置计数器指令，把设备保持的计数器清零。
-		解绑：服务器发布一条空消息，带/device/{deviceID}/config（表示清除消息）
+		解绑：服务器发布一条空消息，带 /device/{deviceID}/config（表示清除消息）
 			 卡头将会收到这条空消息，把自己重置为初始化状态，并重启。
 			 如果服务器端重新发布对应config，设备将会自动获取配置并恢复绑定状态。
 
@@ -41,11 +52,9 @@ mqtt qos 除非特别说明，使用 level 1（最少送达1次）
 	格式：
 	{
 		"fimwareVersion" : 30,						// 必备，数字，卡头发现版本比自己高，则主动升级；同时fw版本和协议版本绑定
-		"fimwareUrl" : "http://www.123.com/fw.bin"	// 必备，固件地址，使用HTTP Basic Auth
-		"resourceUrl" : "http://.."					// 资源包地址，使用HTTP Basic Auth
-		"systemMode" : 1,    						// 必备，1：普通卡头，2：彩票模拟
-		"payUrl" : "http://",						// 扫码=投币 url
-		"saveTicketUrl" : "http://xxxxx",			// 模式2，或者不用url，如果是小程序扫码，是否可以只放一个标志？
+		"fimwareUrl" : "http://www.123.com/fw.sota"	// 必备，固件地址，使用HTTP Basic Auth
+		"systemMode" : 1,    						// 必备，1：礼品机卡头，2：彩票机卡头
+		"payUrl" : "http://urlto.png",				// 扫码=投币 url，或彩票卡头进入虚拟出票
 		"coinPulseWidth" ： 40,						// 投币器脉冲宽度 20到100，默认40
 		"ticketPulseWidth" : 80, 					// 模拟彩票机脉冲宽度，仅模式2
 		"coinPulseLow" : 15,     				    // 投币识别脉冲最低值
@@ -54,7 +63,6 @@ mqtt qos 除非特别说明，使用 level 1（最少送达1次）
 		"ticketPulseHigh" : 105,  					// 出奖脉冲最低值，仅模式1
 		"coinPerPlay" : 1,							// 按一次投币投几个，备用
 		"direction" : 2,           		        	// 1\2\3\4 左上右下，备用
-		"ticketDirectOut" : 1,  					// 设定直接出票1还是模拟出票0，仅模式2
 	}
 
 
@@ -65,7 +73,6 @@ mqtt qos 除非特别说明，使用 level 1（最少送达1次）
 	4，服务器超时时间内没有获取到state变化，可以认为客户端故障；连续多次后可认为掉线通知维护。
 	5，如果成功，此时服务器可以继续发布下一个命令，timestamp必须更改。
 	6，服务器取消发布之后重新发布timestamp一样的命令，并不能被视为重发一个命令。
-	《------待确认 以上设计机制不确定连续投币实际效果如何，需要实测-------》
 
 	标题：
 	/device/{deviceID}/command
@@ -77,14 +84,29 @@ mqtt qos 除非特别说明，使用 level 1（最少送达1次）
 	{
 		"timeStamp" : "0xABCDEF00ABCDEF00",	// 必备，服务器写入，客户端用于区分命令避免执行2次。
 		"commandId" : 1						// 必备，1 投币, 2 计数器清零, 3 改变出票设置,99 重启
-		"commandParam" : "",				// cmd == 1 => 投币个数
+		"commandParam" : "",				//如果数字，16进制
+											// cmd == 1 => 投币个数（不确定是否需要卡头回应是否执行，待测试）
+											// cmd == 3 => 改变出票设置，参数 0 关闭，参数大于 0 表示多少秒后退出模拟彩票模式（退出之后卡头要通知）
 											// 如其他命令有其他参数，在此继续增加。
 											// 注意除了id，timestamp和param都是string
 											// 参数最大长度128byte
 	}
 
+#3 用户身份
+	/device/{deviceID}/customer
 
-#3 数据上传1（客户端发布，服务器使用通配符订阅 /device/+/state 等 ）
+	内容：
+	{
+		"userPortrait": "http://",			// 给空就使用默认
+		"nickName" : " ",					// 长度待定，显示不完就打点
+		"userID" : 123412,					// 用户ID，肯定不为空
+	}
+
+	清空：
+	发布 payload == 0 的标题
+
+
+#4 数据上传1（客户端发布，服务器使用通配符订阅 /device/+/state 等 ）
 	1，MQTT CONNECT后会发布一次，之后应该只有 signal、error、ticketDirectOut 变化才会发布。
 	2，如果卡出现问题，则设备无法收到掉线信息（因为网络没了），但能收到新的上线信息
 
@@ -96,23 +118,23 @@ mqtt qos 除非特别说明，使用 level 1（最少送达1次）
 
 	内容：
 	{
-		"timeStamp" : 0xABCDEF00ABCDEF00,	// 必备，64位tick，hex格式，服务器用于统计数据去重
+		"timeStamp" : "0xABCDEF00ABCDEF00",	// 必备，64位tick，hex格式，服务器用于统计数据去重
 		"hardwareVersion" : 1,				// 必备
 		"firmwareVersion" : 1,				// 必备
 		"imei": "123414123123123123123",    // IMEI，一定会有，因为无卡就没数据连接了
 		"imsi": "123414123123123123123",    // IMSI，一定会有，因为无卡就没数据连接了
 		"iccid": "123414123123123123123",   // ICCID，一定会有，因为无卡就没数据连接了
 		"phone": "13300002323",             // 电话号码
-		"ticketDirectOut" : 0,				// 模式2下必备，当前是直接出票0 还是 模拟出票模式1
 		"signal": -50,						// 4G 信号强度
 		"pinCoinerInit" : 0,				// 投币器输出信号读取值
 		"pinMbOnoffInit": 0,				// 主板彩票开关信号读取值
 		"pinExtCountInit" : 0,				// 彩票机计数信号读取值
-		"errorCode" : 0,					// 0 正常，1 hack detected，2 .... 《------待确认 -------》
+		"errorCode" : 0,					// 0 正常，1 hack detected，2
+		"errorMessage" : "",                //
 	}
 
 
-#4 数据上传2
+#5 数据上传2
 	Wantout 和 Realout 差距，是因为彩票机没票造成的。
 
 	标题：
@@ -124,32 +146,48 @@ mqtt qos 除非特别说明，使用 level 1（最少送达1次）
 
 	格式：
 	{
-		"timeStamp" : 0xABCDEF00ABCDEF00	// 64位tick，hex格式，服务器用于数据去重
-		"lastCommandTS" : 0xABCDEF00ABCDEF00, // 如果客户端执行了之前的某个命令，将把其Timestamp填在这里以提示服务器端。此时服务器端即可停止发布。如果之前没有执行则此处为空。
-		"coin" : 12345,						// 上次清零以来 硬件投币器的收币计数。
-		"prize" : 12345,					// 上次清零以来 出奖计数，仅模式1。
-		"ticketWantOut": 12345,			    // 上次清零以来 想要真实出票，仅模式2。
-		"ticketRealOut" : 12345,			// 上次清零以来 实际真实出票，仅模式2;
-		"ticketEmulated": 12345,			// 上次清零以来 实际模拟出票，仅模式2。
+		"dataFlag" : "0xABCDEF00ABCDEF00"		  // 清零 或者 重启之后的第一个timestamp，一直不变
+		"lastCommandTS" : "0xABCDEF00ABCDEF00",   // 如果客户端执行了之前的某个命令，将把其Timestamp填在这里以提示服务器端。此时服务器端即可停止发布。如果之前没有执行则此处为空。
+		"coin" : 12345,						      // 上次清零以来 硬件投币器的收币计数。
+		"prize" : 12345,					      // 上次清零以来 出奖计数，仅模式1。
+		"ticketWantOut": 10000,			          // 上次清零以来 想要真实出票，仅模式2。
+		"ticketRealOut" : 2000,			          // 上次清零以来 实际真实出票，仅模式2;
+		"ticketEmulated": 8000,			          // 上次清零以来 实际模拟出票，仅模式2。
 	}
 
+#6 数据上传3（暂时不用）
+	每5~10秒上传一次
 
-#5 数据上传3
 	标题：
-	/device/{deviceID}/sms
+	/device/{deviceID}/ticketsave
 
 	参数：
-	retain：false，即如果数据库服务器不在线，将错过sms信息。
+	retain: false
 
-	格式：
+	内容：
 	{
-		"time" : "25/01/19,20:27:24 +32",
-		"phone" : "13300323323",			// 发送方电话，可能比较长
-		"PDU" : "\u1234\u1234" 				// UTF字符串
+		"timeStamp" : "0xABCDEF00ABCDEF00",	// 必备，64位tick，hex格式，服务器用于统计数据去重
+		"userID" : 12323412,
+		"ticket" : 12345,					// 增量
+		"ticketDirectOut" : 0,				// 模式2下必备，当前是直接出票0 还是 模拟出票模式1
 	}
 
+#7 数据上传4
+		标题：
+		/device/{deviceID}/sms
 
-#6 遗嘱
+		参数：
+		retain：false，即如果数据库服务器不在线，将错过sms信息。
+
+		格式：
+		{
+			"time" : "25/01/19,20:27:24 +32",
+			"phone" : "13300323323",			// 发送方电话，可能比较长
+			"PDU" : "\u1234\u1234" 				// UTF字符串
+		}
+
+
+#8 遗嘱
 	/device/{deviceID}/state （同数据上传1）
 	格式（空json），触发时间：设备掉线后约1分钟。
 	{
