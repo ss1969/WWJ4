@@ -7,6 +7,9 @@
 #include "luat_mem.h"
 #include "usart.h"
 
+#define LOG_TO_LUAT
+#define LOG_TO_UART
+
 #define nameof(var) #var
 
 #define MALLOC        luat_heap_malloc
@@ -15,6 +18,7 @@
 #define DELAY         luat_rtos_task_sleep
 #define GPIO_PinState int
 #define SYSTICK       soc_get_poweron_time_tick
+
 void LOG(const char *format, ...);
 void LOG_HEX(char *prefix, char *hex, size_t len);
 
@@ -27,4 +31,5 @@ typedef unsigned char  uint8_t;
 #define TICK_PER_MS 26000
 #define TICK2MS(x)  ((x) / TICK_PER_MS)
 #define MS2TICK(x)  ((x) * TICK_PER_MS)
+
 #endif

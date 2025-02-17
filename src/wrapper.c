@@ -33,9 +33,11 @@ void LOG(const char *format, ...) {
         buffer[--len] = '\0';
     }
 
+#ifdef LOG_TO_LUAT
     // 输出到 LUAT_DEBUG_PRINT，不带时间字符串部分，不带 '\r' 和 '\n'
     LUAT_DEBUG_PRINT("%s", buffer + tm_len);
-
+#endif
+#ifdef LOG_TO_UART
     // 确保有足够空间添加 '\n'
     if (len < MAX_BUFFER_SIZE - 1) {
         buffer[len++] = '\n'; // 添加 '\n'
@@ -46,9 +48,8 @@ void LOG(const char *format, ...) {
         buffer[MAX_BUFFER_SIZE - 2] = '\n'; // 倒数第二个位置放 '\n'
         buffer[MAX_BUFFER_SIZE - 1] = '\0'; // 最后一个字节放 '\0'
     }
-
-    // 输出到 uart_print_async
     uart_print_async("%s", buffer);
+#endif
 }
 
 void LOG_HEX(char *prefix, char *hex, size_t len) {

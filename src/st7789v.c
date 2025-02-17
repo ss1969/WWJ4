@@ -225,11 +225,6 @@ int st7789v_set_direction(luat_lcd_conf_t *conf) {
         direction_data = conf->opts->direction180;
     else
         direction_data = conf->opts->direction270;
-    if (conf->direction == 1 || conf->direction == 3) {
-        int t   = conf->w;
-        conf->w = conf->h;
-        conf->h = t;
-    }
     uart_print_async("LCD direction %d, width %d, height %d\n", conf->direction, conf->w, conf->h);
     lcd_write_cmd_data(conf, 0x36, &direction_data, 1);
     return 0;

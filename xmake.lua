@@ -28,17 +28,23 @@ target(project_name,function()
     end
 
     --加入代码和头文件
-    add_includedirs("./inc",{public = true})
-    add_files("./src/*.c",{public = true})
+    add_includedirs(project_dir .. "./inc",{public = true})
+    add_files(project_dir .. "./src/*.c",{public = true})
     --lvgl9
-    add_includedirs("./src/lvgl9")
-    add_files("./src/lvgl9/**.c")
-    -- remove_files("./src/lvgl9/demos/**")
-    remove_files("./src/lvgl9/examples/**")
-    remove_files("./src/lvgl9/src/draw/nxp/**")
-    remove_files("./src/lvgl9/src/draw/renesas/**")
-    remove_files("./src/lvgl9/src/draw/sdl/**")
-    remove_files("./src/lvgl9/src/drivers/**")
+    add_includedirs(project_dir .. "./src/lvgl9")
+    add_files(project_dir .. "./src/lvgl9/**.c")
+    remove_files(project_dir .. "./src/lvgl9/demos/**")
+    remove_files(project_dir .. "./src/lvgl9/examples/**")
+    remove_files(project_dir .. "./src/lvgl9/src/draw/nxp/**")
+    remove_files(project_dir .. "./src/lvgl9/src/draw/renesas/**")
+    remove_files(project_dir .. "./src/lvgl9/src/draw/sdl/**")
+    remove_files(project_dir .. "./src/lvgl9/src/drivers/**")
+    --gui guider
+    add_files(project_dir .. "./src/ui/**.c")
+    add_includedirs(project_dir .. "./src/ui")
+    add_includedirs(project_dir .. "./src/ui/custom")
+    add_includedirs(project_dir .. "./src/ui/guider_fonts")
+    add_includedirs(project_dir .. "./src/ui/guider_customer_fonts")
 
     --fskv
     add_includedirs(luatos_root.."/components/fskv", {public = true})

@@ -14,20 +14,29 @@
 #include "ft6236.h"
 #include "wrapper.h"
 
-#include "lvgl9\lvgl.h"
+#include "lvgl.h"
+
+#define SHOW_DEMO 0
+
+#if SHOW_DEMO
 #include "lvgl9\demos\lv_demos.h"
 #include "lvgl9\demos\widgets\lv_demo_widgets.h"
+#else
+#include "ui\gui_guider.h"
+#endif
 
-#define SPI_LCD_RAM_CACHE_MAX (LCD_WIDTH * LCD_HEIGHT)
-
-#define LVGL_FLUSH_EVENT    1
-#define LVGL_FLUSH_BUF_LINE 320
+#define LVGL_FLUSH_BUF_LINE LCD_HEIGHT
 
 luat_rtos_task_handle lvgl_flush_task;
 static int            wait_flush = 0;
 static void          *draw_buf   = NULL;
 static lv_indev_t    *indev_touchpad;
 volatile bool         disp_flush_enabled = true;
+
+#if SHOW_DEMO
+#else
+lv_ui ui;
+#endif
 
 static void display_flush(lv_display_t *disp_drv, const lv_area_t *area, uint8_t *px_map) {
     if (disp_flush_enabled) {
@@ -90,8 +99,17 @@ static void lvgl_main_routine(void *param) {
     lv_tick_set_cb(soc_get_poweron_time_ms);
 
     /* own routine */
+#if SHOW_DEMO
     lv_demo_widgets();
-    // lv_demo_benchmark();
+    lv_demo_benchmark();
+#else
+    lv_theme_apply(lv_layer_bottom());
+    ui.screen_watting_del = true;
+    ui.screen_tickets_del = true;
+    ui.screen_unbind_del  = true;
+    setup_scr_screen_tickets(&ui);
+    lv_screen_load(ui.screen_tickets);
+#endif
 
     while (true) {
         uint32_t t = lv_timer_handler();
