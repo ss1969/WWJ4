@@ -143,8 +143,6 @@ static void cmd_rtc(int argc, char **argv) {
 
 //---------------------------------------------------------------------------------------------
 static void cmd_env(int argc, char **argv) {
-    uart_print("Signal %d\n", svSignal);
-
     uart_print("PIN COIN_IN : %d\n", luat_gpio_get(PIN_COIN_IN));
     uart_print("PIN PRIZE_MB_ONOFF : %d\n", luat_gpio_get(PIN_PRZ_MB_ONOFF));
     uart_print("PIN PRIZE_EXT_COUNT : %d\n", luat_gpio_get(PIN_PRZ_EXT_COUNT));
@@ -325,8 +323,6 @@ static void cmd_test1(int argc, char **argv) {
 
     uart_print("%d times, %d ms\n", d, ms2 - ms1);
 #endif
-    luat_mobile_get_sim_number(0, svPhoneNumber, sizeof(svPhoneNumber));
-    LUAT_DEBUG_PRINT("Phone: %s", svPhoneNumber);
 }
 extern int decrypt_mqtt_info(const char *encrypted, char *mqtt_server, int *mqtt_port, char *mqtt_user, char *mqtt_password);
 

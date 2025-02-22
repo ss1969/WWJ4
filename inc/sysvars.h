@@ -2,14 +2,8 @@
 #define _SYSTEM_VARIABLES_H_
 
 #include <stdint.h>
-
+#include "defines.h"
 #include "wrapper.h"
-
-/* General Configs */
-#define SYSTEM_NAME         "WWJ-780EP"
-#define SOFTWARE_VERSION    1
-#define HARDWARE_VERSION    4
-#define CONFIG_HACK_GAP_MIN 75
 
 /* vars 计数器 */
 extern volatile uint32_t svCounterC;
@@ -24,20 +18,15 @@ extern uint8_t  svDbgOn;
 extern uint8_t  svDbgCoin;
 extern uint8_t  svBooting;
 extern uint8_t  svTicketDirectOut;
-extern uint8_t  svSignal;
 extern uint32_t svErrorFlag;
 extern uint32_t svErrorCount;
 extern char     svServerConnected;
 extern short    svPing;
 extern char     svLastCommandExecuted[32];
-extern char     svDataFlag[16];
+extern char     svDataFlag[DATA_FLAG_LENGTH * 2 + 1];
 
 /* vars 系统设置信息 */
-extern char    svSystemID[32];
-extern char    svIMEI[20];
-extern char    svIMSI[20];
-extern char    svICCID[24];
-extern char    svPhoneNumber[24];
+extern char    svSystemID[SYSTEM_ID_LENGTH * 2 + 1];
 extern uint8_t svDeviceType;
 extern uint8_t svDeviceDirection;
 extern uint8_t svDeviceStatus;
@@ -72,5 +61,9 @@ extern uint32_t dbgPulsePrize;
 extern char     dbgPulseFromWhere;
 extern char     dbgPulseIsValid;
 extern uint32_t svHack;
+
+/* Functions */
+void get_system_id(void);
+void generate_data_flag(void);
 
 #endif

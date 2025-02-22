@@ -20,7 +20,8 @@ static int  MQTT_PORT     = 0;   // 9883;
 static char USERNAME[32]  = {0}; // "admin";
 static char PASSWORD[32]  = {0}; // "fkww_168";
 
-static bool mqtt_inited = false;
+static bool mqtt_inited    = false;
+static bool mqtt_connected = false;
 
 // 结构
 typedef struct _MQTT_SUB_ACTIONS_DEF {
@@ -30,10 +31,11 @@ typedef struct _MQTT_SUB_ACTIONS_DEF {
 } MQTT_SUB_ACTIONS_DEF;
 
 typedef struct _MQTT_MSG {
-    int   qos;
     char  topic[64];
     char *json;
-    int   len;
+    short len;
+    char  qos;
+    char  retain;
 } MQTT_MSG;
 
 // SUB 项目
@@ -59,7 +61,7 @@ static MQTT_SUB_ACTIONS_DEF MQTT_SUB_ACTIONS[] = {
 };
 #define MQTT_SUB_ACTIONS_DEF_COUNT (sizeof(MQTT_SUB_ACTIONS) / sizeof(MQTT_SUB_ACTIONS_DEF))
 
-static void (*MQTT_PUB_AFTERCONNECT[])() = {mqtt_pub_status, mqtt_pub_counter};
+static void (*MQTT_PUB_AFTERCONNECT[])() = {mqtt_pub_counter};
 
 // 变量
 static luat_rtos_task_handle task_mqtt_handle = NULL;
@@ -111,6 +113,7 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event) {
     switch (event) {
         case MQTT_MSG_CONNACK: {
             LOG("MQTT connected successfully.");
+            mqtt_connected = true;
             // 订阅
             for (int i = 0; i < MQTT_SUB_ACTIONS_DEF_COUNT; i++) {
                 mqtt_subscribe(&ctrl->broker, MQTT_SUB_ACTIONS[i].topicString, &msgId, MQTT_SUB_ACTIONS[i].qosLevel);
@@ -151,6 +154,7 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event) {
             break;
         case MQTT_MSG_DISCONNECT: {
             LOG("MQTT disconnected. Attempting to reconnect...");
+            mqtt_connected = false;
             luat_rtos_task_sleep(5 * 1000);
             if (MQTT_AUTOCON) {
                 luat_mqtt_reconnect(ctrl);
@@ -169,6 +173,7 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event) {
             luat_mqtt_ping(ctrl);
             break;
         case MQTT_MSG_RECONNECT: {
+            mqtt_connected = false;
             if (MQTT_AUTOCON) {
                 LOG("MQTT auto-reconnect triggered.");
                 luat_mqtt_reconnect(ctrl);
@@ -177,6 +182,7 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event) {
         }
         case MQTT_MSG_CLOSE: {
             LOG("MQTT connection closed. Attempting manual reconnect...");
+            mqtt_connected = false;
             if (!MQTT_AUTOCON) {
                 ret = luat_mqtt_reconnect(ctrl);
                 if (ret) {
@@ -270,7 +276,7 @@ static void mqtt_main_routine(void *param) {
 
         // send
         uint16_t msgId = 0;
-        mqtt_publish_with_qos(&mqttHandle->broker, msg->topic, msg->json, msg->len, 1, msg->qos, &msgId);
+        mqtt_publish_with_qos(&mqttHandle->broker, msg->topic, msg->json, msg->len, msg->retain, msg->qos, &msgId);
         if (luat_rtos_semaphore_take(mqtt_sema_puback, MQTT_PUBACK_TIMEOUT) == 0) {
             LUAT_DEBUG_PRINT("Published topic: %s, len %dB, msgID %d", msg->topic, msg->len, msgId);
         }
@@ -289,12 +295,17 @@ static void mqtt_main_routine(void *param) {
 }
 
 // 发布数据
-int mqtt_publish_data(char *topic, char *json, int qos) {
+int mqtt_publish_data(char *topic, char *json, char retain, char qos) {
+    if (!mqtt_connected)
+        return 0;
+
     MQTT_MSG *msg = (MQTT_MSG *)LUAT_MEM_MALLOC(sizeof(MQTT_MSG));
-    msg->qos      = qos;
     strcpy(msg->topic, topic);
-    msg->json = json;
-    msg->len  = strlen(msg->json);
+    msg->json   = json;
+    msg->len    = strlen(msg->json);
+    msg->retain = retain;
+    msg->qos    = qos;
+
     return luat_rtos_message_send(task_mqtt_handle, 0, msg);
 }
 

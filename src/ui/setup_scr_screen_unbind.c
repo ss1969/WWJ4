@@ -48,8 +48,8 @@ void setup_scr_screen_unbind(lv_ui *ui)
 
     //Write codes screen_unbind_lb_device_id
     ui->screen_unbind_lb_device_id = lv_label_create(ui->screen_unbind_cont_1);
-    lv_obj_set_pos(ui->screen_unbind_lb_device_id, 53, 8);
-    lv_obj_set_size(ui->screen_unbind_lb_device_id, 252, 24);
+    lv_obj_set_pos(ui->screen_unbind_lb_device_id, 33, 8);
+    lv_obj_set_size(ui->screen_unbind_lb_device_id, 254, 22);
     lv_label_set_text(ui->screen_unbind_lb_device_id, "SN: 12292202039302");
     lv_label_set_long_mode(ui->screen_unbind_lb_device_id, LV_LABEL_LONG_WRAP);
 
@@ -61,7 +61,7 @@ void setup_scr_screen_unbind(lv_ui *ui)
     lv_obj_set_style_text_opa(ui->screen_unbind_lb_device_id, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_letter_space(ui->screen_unbind_lb_device_id, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_line_space(ui->screen_unbind_lb_device_id, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_align(ui->screen_unbind_lb_device_id, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui->screen_unbind_lb_device_id, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui->screen_unbind_lb_device_id, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_pad_top(ui->screen_unbind_lb_device_id, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_pad_right(ui->screen_unbind_lb_device_id, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
@@ -173,8 +173,8 @@ void setup_scr_screen_unbind(lv_ui *ui)
 
     //Write codes screen_unbind_lbSignal
     ui->screen_unbind_lbSignal = lv_label_create(ui->screen_unbind);
-    lv_obj_set_pos(ui->screen_unbind_lbSignal, 45, 212);
-    lv_obj_set_size(ui->screen_unbind_lbSignal, 231, 32);
+    lv_obj_set_pos(ui->screen_unbind_lbSignal, 33, 212);
+    lv_obj_set_size(ui->screen_unbind_lbSignal, 255, 32);
     lv_label_set_text(ui->screen_unbind_lbSignal, "电信卡 | 信号强度 16");
     lv_label_set_long_mode(ui->screen_unbind_lbSignal, LV_LABEL_LONG_WRAP);
 

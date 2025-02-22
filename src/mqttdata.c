@@ -92,16 +92,16 @@ static char *sms2Json(char *time, char *phone, char *pdu) {
     return jsonOut;
 }
 
-void mqtt_pub_status(void) {
+void mqtt_pub_status(int signal, char *imei, char *imsi, char *iccid, char *phone) {
     WStatusReport sts;
 
     sts.hardwareVersion = HARDWARE_VERSION;
     sts.firmwareVersion = SOFTWARE_VERSION;
-    strcpy(sts.imei, svIMEI);
-    strcpy(sts.imsi, svIMSI);
-    strcpy(sts.iccid, svICCID);
-    strcpy(sts.phone, svPhoneNumber);
-    sts.signal          = svSignal;
+    strcpy(sts.imei, imei);
+    strcpy(sts.imsi, imsi);
+    strcpy(sts.iccid, iccid);
+    strcpy(sts.phone, phone);
+    sts.signal          = signal;
     sts.pinCoinerInit   = 0;      // k
     sts.pinMbOnoffInit  = 0;      // k
     sts.pinExtCountInit = 0;      // k
@@ -112,7 +112,7 @@ void mqtt_pub_status(void) {
     if (json) {
         char topic[64] = {0};
         sprintf(topic, MQTT_PUB_TOPIC_STATUS, svSystemID);
-        mqtt_publish_data(topic, json, MQTT_PUB_QOS);
+        mqtt_publish_data(topic, json, 1, MQTT_PUB_QOS);
     }
 }
 
@@ -131,7 +131,7 @@ void mqtt_pub_counter(void) {
     if (json) {
         char topic[64];
         sprintf(topic, MQTT_PUB_TOPIC_COUNTER, svSystemID);
-        mqtt_publish_data(topic, json, MQTT_PUB_QOS);
+        mqtt_publish_data(topic, json, 0, MQTT_PUB_QOS);
     }
 }
 
@@ -146,7 +146,7 @@ void mqtt_pub_ticket_save(int userID, int ticketAdd, int ticketDirectOut) {
     if (json) {
         char topic[64];
         sprintf(topic, MQTT_PUB_TOPIC_TICKET_SAVE, svSystemID);
-        mqtt_publish_data(topic, json, MQTT_PUB_QOS);
+        mqtt_publish_data(topic, json, 0, MQTT_PUB_QOS);
     }
 }
 
@@ -155,7 +155,7 @@ void mqtt_pub_sms(char *time, char *phone, char *pdu) {
     if (json) {
         char topic[64];
         sprintf(topic, MQTT_PUB_TOPIC_SMS, svSystemID);
-        mqtt_publish_data(topic, json, MQTT_PUB_QOS);
+        mqtt_publish_data(topic, json, 0, MQTT_PUB_QOS);
     }
 }
 
@@ -454,7 +454,7 @@ void mqtt_data_cb_command(char *data, uint32_t len) {
         } break;
         case MQTT_CMD_RESETCOUNTER: {
             strcpy(svLastCommandExecuted, cmd.timeStamp);
-            luat_crypto_trng(svDataFlag, sizeof(svDataFlag));
+            generate_data_flag();
         } break;
         case MQTT_CMD_SETDIRECTTICKET: {
             int dttimeout = strtoul(cmd.commandParam, NULL, 16);

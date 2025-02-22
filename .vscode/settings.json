@@ -96,7 +96,9 @@
         "gui_guider.h": "c",
         "qrcodegen.h": "c",
         "lv_drivers.h": "c",
-        "gui.h": "c"
+        "gui.h": "c",
+        "mobile.h": "c",
+        "defines.h": "c"
     },
     "files.autoSave": "onFocusChange"
 }

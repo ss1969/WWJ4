@@ -6,8 +6,8 @@
 #include "luat_mem.h"
 
 #include "str2x.h"
-#include "sysvars.h"
 #include "mobile.h"
+#include "wrapper.h"
 
 #define MOBILE_CELL_REFRESH_TIME 120 * 1000
 
@@ -19,7 +19,14 @@ typedef enum {
 static luat_rtos_task_handle   task_mobile_handle = NULL;
 static luat_mobile_cell_info_t s_cell_info;
 static net_status_callback     net_ready_cb = NULL;
-net_sms_callback               net_sms_cb   = NULL;
+static net_sms_callback        net_sms_cb   = NULL;
+static net_info_callback       net_info_cb  = NULL;
+
+static uint8_t signal    = 0;   /* 信号强度 */
+static char    imei[20]  = {0}; /* IMEI */
+static char    imsi[20]  = {0}; /* IMSI */
+static char    iccid[24] = {0}; /* ICCID */
+static char    phone[24] = {0}; /* Number */
 
 static void sms_recv_cb(uint32_t event, void *param) {
     LUAT_DEBUG_PRINT("sms_recv_cb:[%d]", event);
@@ -32,7 +39,6 @@ static void sms_send_cb(uint32_t event, void *param) {
 
 static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t status) {
     luat_mobile_signal_strength_info_t signal_info;
-    uint16_t                           mcc;
     uint8_t                            csq, i, mnc;
     char                               apn[32] = {0};
     ip_addr_t                          ipv4;
@@ -52,35 +58,21 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
             switch (status) {
                 case LUAT_MOBILE_SIM_READY:
                     LOG("SIM卡正常工作");
-                    luat_mobile_get_imsi(0, svIMSI, sizeof(svIMSI));
-                    LOG("IMSI: %s", svIMSI);
-                    luat_mobile_get_iccid(0, svICCID, sizeof(svICCID));
-                    LOG("ICCID: %s", svICCID);
-                    luat_mobile_get_plmn_from_imsi(svIMSI, &mcc, &mnc);
-                    LOG("MCC: %d, MNC %d", mcc, mnc);
-                    result = luat_mobile_get_isp_from_plmn(mcc, mnc);
-                    switch (result) {
-                        case LUAT_MOBILE_ISP_CMCC:
-                            LOG("中国移动卡");
-                            break;
-                        case LUAT_MOBILE_ISP_CTCC:
-                            LOG("中国电信卡");
-                            break;
-                        case LUAT_MOBILE_ISP_CUCC:
-                            LOG("中国联通卡");
-                            break;
-                        case LUAT_MOBILE_ISP_CRCC:
-                            LOG("中国广电卡");
-                            break;
-                        case LUAT_MOBILE_ISP_UNKNOW:
-                            LOG("未知运营商");
-                            break;
-                        default:
-                            LOG("非中国卡 %d", result);
-                            break;
-                    }
+                    luat_mobile_get_imei(0, imei, sizeof(imei));
+                    LOG("IMEI: %s", imei);
+                    luat_mobile_get_imsi(0, imsi, sizeof(imsi));
+                    LOG("IMSI: %s", imsi);
+                    luat_mobile_get_iccid(0, iccid, sizeof(iccid));
+                    LOG("ICCID: %s", iccid);
+                    if (net_info_cb != NULL)
+                        net_info_cb(signal, imei, imsi, iccid, phone);
                     break;
                 case LUAT_MOBILE_NO_SIM:
+                    memset(imsi, 0, sizeof(imsi));
+                    memset(iccid, 0, sizeof(iccid));
+                    memset(phone, 0, sizeof(phone));
+                    if (net_info_cb != NULL)
+                        net_info_cb(signal, imei, imsi, iccid, phone);
                     LOG("SIM卡不存在");
                     break;
                 case LUAT_MOBILE_SIM_NEED_PIN:
@@ -94,8 +86,10 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
             rs = status;
             if (status == LUAT_MOBILE_STATUS_REGISTERED) {
                 LOG("移动网络服务状态变更: REGISTERED");
-                luat_mobile_get_sim_number(0, svPhoneNumber, sizeof(svPhoneNumber));
-                LUAT_DEBUG_PRINT("Phone: %s", svPhoneNumber);
+                luat_mobile_get_sim_number(0, phone, sizeof(phone));
+                LUAT_DEBUG_PRINT("Phone: %s", phone);
+                if (net_info_cb != NULL)
+                    net_info_cb(signal, imei, imsi, iccid, phone);
             }
             else {
                 LOG("移动网络服务状态变更: %d", status);
@@ -130,7 +124,9 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
                 case LUAT_MOBILE_SIGNAL_UPDATE:
                     luat_mobile_get_last_notify_signal_strength_info(&signal_info);
                     luat_mobile_get_last_notify_signal_strength(&csq);
-                    svSignal = csq;
+                    signal = csq;
+                    if (net_info_cb != NULL)
+                        net_info_cb(signal, imei, imsi, iccid, phone);
 #if 0 // k 信号强度，不显示LOG了
                     if (signal_info.luat_mobile_lte_signal_strength_vaild) {
                         LOG("信号状态变更 rsrp %d, rsrq %d, snr %d, rssi %d, csq %d %d",
@@ -342,4 +338,37 @@ void mobile_set_netready_callback(net_status_callback cb) {
 
 void mobile_set_sms_callback(net_sms_callback cb) {
     net_sms_cb = cb;
+}
+
+void mobile_set_info_callback(net_info_callback cb) {
+    net_info_cb = cb;
+}
+
+char *mobile_detect_card(void) {
+    uint16_t mcc;
+    uint8_t  mnc;
+
+    luat_mobile_get_plmn_from_imsi(imsi, &mcc, &mnc);
+    int result = luat_mobile_get_isp_from_plmn(mcc, mnc);
+
+    switch (result) {
+        case LUAT_MOBILE_ISP_CMCC:
+            return ("中国移动卡");
+            break;
+        case LUAT_MOBILE_ISP_CTCC:
+            return ("中国电信卡");
+            break;
+        case LUAT_MOBILE_ISP_CUCC:
+            return ("中国联通卡");
+            break;
+        case LUAT_MOBILE_ISP_CRCC:
+            return ("中国广电卡");
+            break;
+        case LUAT_MOBILE_ISP_UNKNOW:
+            return ("未知运营商");
+            break;
+        default:
+            return ("非中国卡");
+            break;
+    }
 }

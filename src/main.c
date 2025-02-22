@@ -20,6 +20,7 @@
 #include "mobile.h"
 #include "mqttdata.h"
 #include "wrapper.h"
+#include "gui.h"
 
 #define HTTP_CRYPTO_KEY        "IcG6OnMCLgii7McbzuTtLNSbS7XU4F9G"
 #define CRYPTO_AES_CBC_IV_SIZE 16
@@ -30,19 +31,6 @@ static luat_rtos_task_handle task_main_handle;
 
 extern void cli_task_init(void);
 extern void lvgl_task_init(void);
-
-/* 获取系统ID */
-void getSystemID(void) {
-    extern const char *luat_mcu_unique_id(size_t *t);
-    size_t             len;
-    char              *id = luat_mcu_unique_id(&len);
-    for (int i = 0; i < len; i++) {
-        sprintf(svSystemID + i * 2, "%02x", id[i]);
-    }
-
-    luat_mobile_get_imei(0, svIMEI, sizeof(svIMEI));
-    LOG("IMEI: %s", svIMEI);
-}
 
 /* 解密固定格式 mqtt,xxx.xxx.xxx.xxx,12345,username,password 的base64 */
 int decrypt_mqtt_info(const char *base64str, char *mqtt_server, int *mqtt_port, char *mqtt_user, char *mqtt_password) {
@@ -149,14 +137,21 @@ void mobile_ready_status_cb(bool ready) {
     }
 }
 
+void mobile_info_cb(int signal, char *imei, char *imsi, char *iccid, char *phone) {
+    mqtt_pub_status(signal, imei, imsi, iccid, phone);
+    gui_unbind_set_signal(mobile_detect_card(), signal);
+}
+
+/* 主初始化线程 */
 static void main_main_routine(void *param) {
-    getSystemID();
+    get_system_id();
     uart_task_init();
     fskv_task_init();
     gpio_task_init();
-#if 1 // dynamic
+#if 1 // dynamic get mqtt parameters
     mobile_set_netready_callback(mobile_ready_status_cb);
     mobile_set_sms_callback(mqtt_pub_sms);
+    mobile_set_info_callback(mobile_info_cb);
     mobile_task_init();
 #else
     mobile_set_sms_callback(mqtt_pub_sms);
@@ -164,14 +159,15 @@ static void main_main_routine(void *param) {
     mqtt_task_init("mq.catchtoy.cn", 9883, "admin", "fkww_168");
 #endif
     lvgl_task_init();
-    luat_crypto_trng(svDataFlag, sizeof(svDataFlag));
+    generate_data_flag();
 
     /* info */
     LOG("\nBUILD: %s %s\n", __DATE__, __TIME__);
     LOG("Sys mode: %d\n", svDeviceType);
     LOG("System ID: %s\n", svSystemID);
-    LOG_HEX("DataFlag: ", svDataFlag, sizeof(svDataFlag));
+    LOG("DataFlag: %s\n", svDataFlag);
 
+    /* cli */
     cli_task_init();
 
     int          ret;
