@@ -1,1 +1,0 @@
-GEN_CSRCS += _waiting1_RGB565A8_86x36.c _unbind1_RGB565A8_128x109.c

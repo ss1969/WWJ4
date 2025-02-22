@@ -93,7 +93,10 @@
         "xtree": "c",
         "format": "c",
         "cli.h": "c",
-        "gui_guider.h": "c"
+        "gui_guider.h": "c",
+        "qrcodegen.h": "c",
+        "lv_drivers.h": "c",
+        "gui.h": "c"
     },
     "files.autoSave": "onFocusChange"
 }

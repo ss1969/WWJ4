@@ -137,9 +137,11 @@ void http_data_rx_cb(const char *data, const int size, HTTP_STATUS status) {
     }
 }
 
+bool first = false;
 void mobile_ready_status_cb(bool ready) {
-    if (ready) {
+    if (ready & !first) {
         http_get(svHttpServer, http_data_rx_cb);
+        first = true;
     }
     else {
         // k 现在先不在网络断掉的时候做事

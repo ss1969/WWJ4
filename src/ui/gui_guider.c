@@ -87,8 +87,8 @@ void setup_ui(lv_ui *ui)
     setup_bottom_layer();
     init_scr_del_flag(ui);
     init_keyboard(ui);
-    setup_scr_screen_tickets(ui);
-    lv_screen_load(ui->screen_tickets);
+    setup_scr_screen_watting(ui);
+    lv_screen_load(ui->screen_watting);
 }
 
 void video_play(lv_ui *ui)

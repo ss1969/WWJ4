@@ -72,36 +72,36 @@ static inline uint8_t ft6336_scan(int16_t *pos) {
     ft6336_read(FT6336_GET_FINGERNUM, &finger_num, 1);
     if (finger_num) {
         ft6336_read(FT6336_GET_LOC0, temp, 4);
-#if LCD_DIRECTION == 0
+#if SCREEN_DIRECTION == 0
         pos[0] = ((uint16_t)(temp[0] & 0x0F) << 8) + temp[1];
         pos[1] = (((uint16_t)(temp[2] & 0x0F) << 8) + temp[3]);
-#elif LCD_DIRECTION == 1
+#elif SCREEN_DIRECTION == 1
         pos[1] = LCD_HEIGHT - (((uint16_t)(temp[0] & 0x0F) << 8) + temp[1]);
         pos[0] = (((uint16_t)(temp[2] & 0x0F) << 8) + temp[3]);
-#elif LCD_DIRECTION == 2
+#elif SCREEN_DIRECTION == 2
         pos[0] = LCD_WIDTH - (((uint16_t)(temp[0] & 0x0F) << 8) + temp[1]);
         pos[1] = LCD_HEIGHT - (((uint16_t)(temp[2] & 0x0F) << 8) + temp[3]);
-#elif LCD_DIRECTION == 3
+#elif SCREEN_DIRECTION == 3
         pos[1] = ((uint16_t)(temp[0] & 0x0F) << 8) + temp[1];
         pos[0] = LCD_WIDTH - (((uint16_t)(temp[2] & 0x0F) << 8) + temp[3]);
 #endif
-        LOG("Touch#1 %d,%d", pos[0], pos[1]);
+        // LOG("Touch#1 %d,%d", pos[0], pos[1]);
         if (finger_num > 1) {
             ft6336_read(FT6336_GET_LOC1, &temp[4], 4);
-#if LCD_DIRECTION == 0
+#if SCREEN_DIRECTION == 0
             pos[2] = ((uint16_t)(temp[4] & 0x0F) << 8) + temp[5];
             pos[3] = (((uint16_t)(temp[6] & 0x0F) << 8) + temp[7]);
-#elif LCD_DIRECTION == 1
+#elif SCREEN_DIRECTION == 1
             pos[3] = LCD_HEIGHT - (((uint16_t)(temp[4] & 0x0F) << 8) + temp[5]);
             pos[2] = (((uint16_t)(temp[6] & 0x0F) << 8) + temp[7]);
-#elif LCD_DIRECTION == 2
+#elif SCREEN_DIRECTION == 2
             pos[2] = LCD_WIDTH - (((uint16_t)(temp[4] & 0x0F) << 8) + temp[5]);
             pos[3] = LCD_HEIGHT - (((uint16_t)(temp[6] & 0x0F) << 8) + temp[7]);
-#elif LCD_DIRECTION == 3
+#elif SCREEN_DIRECTION == 3
             pos[3] = ((uint16_t)(temp[4] & 0x0F) << 8) + temp[5];
             pos[2] = LCD_WIDTH - (((uint16_t)(temp[6] & 0x0F) << 8) + temp[7]);
 #endif
-            LOG("Touch#2 %d,%d", pos[2], pos[3]);
+            // LOG("Touch#2 %d,%d", pos[2], pos[3]);
         }
     }
     return finger_num;
