@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include "lvgl.h"
 #include "gui.h"
+#include "mqttdata.h"
 
 #if LV_USE_GUIDER_SIMULATOR && LV_USE_FREEMASTER
 #include "freemaster_client.h"
@@ -20,7 +21,9 @@ static void screen_tickets_btn_save_exit_event_handler(lv_event_t *e) {
     lv_event_code_t code = lv_event_get_code(e);
     switch (code) {
         case LV_EVENT_CLICKED: {
-
+            gui_ticket_end_timer();
+            gui_waiting_switch();
+            mqtt_pub_ticket_save();
             break;
         }
         default:

@@ -154,7 +154,9 @@ static void cmd_env(int argc, char **argv) {
     uart_print("   ticket want %d\n", svCounterW);
     uart_print("   direct ticket mode %s\n", svTicketDirectOut ? "ON" : "OFF");
 
-    uart_print("2  svUrlWXPay %s\n", svUrlWXPay);
+    uart_print("1  svMachineName %s\n", svMachineName);
+    uart_print("2  svPayUrl %s\n", svPayUrl);
+    uart_print("3  svTicketUrl %s\n", svTicketUrl);
     uart_print("4  svDeviceStatus %d\n", svDeviceStatus);
     uart_print("5  svDeviceType %d\n", svDeviceType);
     uart_print("7  svCoinSw2 %d\n", svCoinSw2);
@@ -194,7 +196,7 @@ static void cmd_set(int argc, char **argv) {
             break;
         case 2:
             fskv_save_async(FSKV_EVT_URL_WXPAY, (uint32_t)argv[2]);
-            uart_print("set svUrlWXPay %s\n", argv[2]);
+            uart_print("set svPayUrl %s\n", argv[2]);
             break;
         case 4:
             fskv_save_async(FSKV_EVT_DEV_STATUS, value);

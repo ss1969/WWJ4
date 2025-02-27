@@ -18,6 +18,9 @@
 #include "tecontrol.h"
 #include "gui.h"
 
+/* for variables */
+static WCustomer customer_info = {0};
+
 /********************** FOR PUBLISH **********************/
 #define MQTT_PUB_QOS               1
 #define MQTT_PUB_TOPIC_STATUS      "/device/%s/state"
@@ -93,6 +96,7 @@ static char *sms2Json(char *time, char *phone, char *pdu) {
 }
 
 void mqtt_pub_status(int signal, char *imei, char *imsi, char *iccid, char *phone) {
+    LOG("mqtt_pub_status Signal %d", signal);
     WStatusReport sts;
 
     sts.hardwareVersion = HARDWARE_VERSION;
@@ -117,10 +121,12 @@ void mqtt_pub_status(int signal, char *imei, char *imsi, char *iccid, char *phon
 }
 
 void mqtt_pub_counter(void) {
+    LOG("mqtt_pub_counter C %d, D %d, W %d, R %d, E %d", svCounterC, svCounterD, svCounterW, svCounterR, svCounterE);
+
     WCounterReport cnt;
 
-    strcpy(cnt.dataFlag, svDataFlag);
-    strcpy(cnt.lastCommandTS, svLastCommandExecuted);
+    strncpy(cnt.dataFlag, svDataFlag, sizeof(cnt.dataFlag));
+    strncpy(cnt.lastCommandTS, svLastCommandExecuted, sizeof(cnt.lastCommandTS));
     cnt.coin           = svCounterC;
     cnt.prize          = svCounterD;
     cnt.ticketWantOut  = svCounterW;
@@ -135,12 +141,13 @@ void mqtt_pub_counter(void) {
     }
 }
 
-void mqtt_pub_ticket_save(int userID, int ticketAdd, int ticketDirectOut) {
+void mqtt_pub_ticket_save(void) {
+    LOG("mqtt_pub_ticket_save C %d, D %d, W %d, R %d, E %d", svCounterC, svCounterD, svCounterW, svCounterR, svCounterE);
     WTicketSave cnt;
 
-    cnt.userID          = userID;
-    cnt.ticketAdd       = ticketAdd;
-    cnt.ticketDirectOut = ticketDirectOut;
+    cnt.userID = customer_info.userID;
+    // cnt.ticketAdd       = ticketAdd;
+    // cnt.ticketDirectOut = ticketDirectOut;
 
     char *json = counters2Json(&cnt);
     if (json) {
@@ -151,6 +158,7 @@ void mqtt_pub_ticket_save(int userID, int ticketAdd, int ticketDirectOut) {
 }
 
 void mqtt_pub_sms(char *time, char *phone, char *pdu) {
+    LOG("mqtt_pub_sms time %s phone %s text %s", time, phone, pdu);
     char *json = sms2Json(time, phone, pdu);
     if (json) {
         char topic[64];
@@ -193,7 +201,7 @@ static int json2Config(char *jsonIn, WConfig *config) {
         cJSON_Delete(json);
         return -1;
     }
-    strcpy(config->firmwareUrl, item->valuestring);
+    strncpy(config->firmwareUrl, item->valuestring, sizeof(config->firmwareUrl));
 
     item = cJSON_GetObjectItem(json, "systemMode");
     if (!item || !cJSON_IsNumber(item)) {
@@ -203,13 +211,29 @@ static int json2Config(char *jsonIn, WConfig *config) {
     }
     config->systemMode = item->valueint;
 
+    item = cJSON_GetObjectItem(json, "machineName");
+    if (!item || !cJSON_IsString(item)) {
+        LUAT_DEBUG_PRINT("Invalid or missing 'machineName' field.");
+        cJSON_Delete(json);
+        return -1;
+    }
+    strncpy(config->machineName, item->valuestring, sizeof(config->machineName));
+
     item = cJSON_GetObjectItem(json, "payUrl");
     if (!item || !cJSON_IsString(item)) {
         LUAT_DEBUG_PRINT("Invalid or missing 'payUrl' field.");
         cJSON_Delete(json);
         return -1;
     }
-    strcpy(config->payUrl, item->valuestring);
+    strncpy(config->payUrl, item->valuestring, sizeof(config->payUrl));
+
+    item = cJSON_GetObjectItem(json, "ticketUrl");
+    if (!item || !cJSON_IsString(item)) {
+        LUAT_DEBUG_PRINT("Invalid or missing 'ticketUrl' field.");
+        cJSON_Delete(json);
+        return -1;
+    }
+    strncpy(config->ticketUrl, item->valuestring, sizeof(config->ticketUrl));
 
     item = cJSON_GetObjectItem(json, "coinPulseWidth");
     if (!item || !cJSON_IsNumber(item)) {
@@ -292,7 +316,7 @@ static int json2Command(char *jsonIn, WCommand *cmd) {
         cJSON_Delete(json);
         return -1;
     }
-    strcpy(cmd->timeStamp, item->valuestring);
+    strncpy(cmd->timeStamp, item->valuestring, sizeof(cmd->timeStamp));
 
     item = cJSON_GetObjectItem(json, "commandId");
     if (!item || !cJSON_IsNumber(item)) {
@@ -327,7 +351,7 @@ static int json2Customer(char *jsonIn, WCustomer *info) {
         cJSON_Delete(json);
         return -1;
     }
-    strcpy(info->userPortrait, item->valuestring);
+    strncpy(info->userPortrait, item->valuestring, sizeof(info->userPortrait));
 
     item = cJSON_GetObjectItem(json, "nickName");
     if (!item || !cJSON_IsString(item)) {
@@ -335,7 +359,7 @@ static int json2Customer(char *jsonIn, WCustomer *info) {
         cJSON_Delete(json);
         return -1;
     }
-    strcpy(info->nickName, item->valuestring);
+    strncpy(info->nickName, item->valuestring, sizeof(info->nickName));
 
     item = cJSON_GetObjectItem(json, "userID");
     if (!item || !cJSON_IsNumber(item)) {
@@ -352,11 +376,11 @@ static int json2Customer(char *jsonIn, WCustomer *info) {
 void mqtt_data_cb_config(char *data, uint32_t len) {
     /* 检查是否收到长度0的 config，这是解绑 */
     if (len == 0) {
-        LUAT_DEBUG_PRINT("收到空config，这是一个解绑操作");
+        LOG("收到空config，这是一个解绑操作");
         fskv_reset_data();
-        LUAT_DEBUG_PRINT("fskv_reset_data() done");
+        LOG("fskv_reset_data() done");
         luat_rtos_task_sleep(1000);
-        LUAT_DEBUG_PRINT("Reboot inited ");
+        LOG("Reboot inited ");
         luat_os_reboot(0);
         return;
     }
@@ -365,16 +389,18 @@ void mqtt_data_cb_config(char *data, uint32_t len) {
     bool    needReboot = false;
     WConfig config;
     if (json2Config(data, &config) != 0) {
-        LUAT_DEBUG_PRINT("mqtt_data_cb_config() ERROR!!!! ");
+        LOG("mqtt_data_cb_config() ERROR!!!! ");
         return;
     }
 
     // Info
-    LUAT_DEBUG_PRINT("/device/+/config RECEIVED!");
+    LOG("/device/+/config RECEIVED!");
     LUAT_DEBUG_PRINT("Firmware Version: %d", config.firmwareVersion);
     LUAT_DEBUG_PRINT("Firmware URL: %s", config.firmwareUrl);
     LUAT_DEBUG_PRINT("System Mode: %d", config.systemMode);
     LUAT_DEBUG_PRINT("Pay URL: %s", config.payUrl);
+    LUAT_DEBUG_PRINT("Ticket URL: %s", config.ticketUrl);
+    LUAT_DEBUG_PRINT("Machine Name: %s", config.machineName);
     LUAT_DEBUG_PRINT("Coin Pulse Width: %d", config.coinPulseWidth);
     LUAT_DEBUG_PRINT("Ticket Pulse Width: %d", config.ticketPulseWidth);
     LUAT_DEBUG_PRINT("Coin Pulse Low: %d", config.coinPulseLow);
@@ -389,8 +415,20 @@ void mqtt_data_cb_config(char *data, uint32_t len) {
         fskv_save_async(FSKV_EVT_DEV_TYPE, config.systemMode);
         needReboot = true;
     }
-    if (svCoinSw2 != config.coinPulseWidth) {
+    if (config.coinPulseWidth != svCoinSw2) {
         fskv_save_async(FSKV_EVT_COINER_SW2, config.coinPulseWidth);
+        needReboot = true;
+    }
+    if (strcmp(svPayUrl, config.payUrl) != 0) {
+        fskv_save_async(FSKV_EVT_URL_WXPAY, config.payUrl);
+        needReboot = true;
+    }
+    if (strcmp(svTicketUrl, config.ticketUrl) != 0) {
+        fskv_save_async(FSKV_EVT_URL_TICKET, config.ticketUrl);
+        needReboot = true;
+    }
+    if (strcmp(svMachineName, config.machineName) != 0) {
+        fskv_save_async(FSKV_EVT_MACHINE_NAME, config.machineName);
         needReboot = true;
     }
 
@@ -415,7 +453,7 @@ void mqtt_data_cb_config(char *data, uint32_t len) {
     // 需要排除https开头，因为现在https开头的直接要挂
     if (config.firmwareVersion > SOFTWARE_VERSION && memcmp(config.firmwareUrl, "http://", 7) == 0) {
         // initialize OTA
-        LUAT_DEBUG_PRINT("Start OTA: new version %d", config.firmwareVersion);
+        LOG("Start OTA: new version %d", config.firmwareVersion);
         gpio_deinit();
         mqtt_task_deinit();
         extern void ota_task_init(const char *firmware_url);
@@ -423,13 +461,13 @@ void mqtt_data_cb_config(char *data, uint32_t len) {
         return;
     }
     else {
-        LUAT_DEBUG_PRINT("new firmware version: %d, address: %s", config.firmwareVersion, config.firmwareUrl);
-        LUAT_DEBUG_PRINT("WILL NOT SOTA, quit!");
+        LOG("new firmware version: %d, address: %s", config.firmwareVersion, config.firmwareUrl);
+        LOG("WILL NOT SOTA, quit!");
     }
 
     // 重启
     if (needReboot) {
-        LUAT_DEBUG_PRINT("REBOOT required!");
+        LOG("REBOOT required!");
         luat_rtos_task_sleep(1000);
         luat_os_reboot(0);
     }
@@ -442,29 +480,29 @@ void mqtt_data_cb_command(char *data, uint32_t len) {
     WCommand cmd;
 
     if (json2Command(data, &cmd) != 0) {
-        LUAT_DEBUG_PRINT("Mqtt_DataCallbackCommand() ERROR!!!! ");
+        LOG("Mqtt_DataCallbackCommand() ERROR!!!! ");
         return;
     }
 
     switch (cmd.commandId) {
         case MQTT_CMD_INSERTCOIN: {
             int coin = strtoul(cmd.commandParam, NULL, 16);
-            strcpy(svLastCommandExecuted, cmd.timeStamp);
+            strncpy(svLastCommandExecuted, cmd.timeStamp, sizeof(svLastCommandExecuted));
             gpio_outCoin(coin);
         } break;
         case MQTT_CMD_RESETCOUNTER: {
-            strcpy(svLastCommandExecuted, cmd.timeStamp);
+            strncpy(svLastCommandExecuted, cmd.timeStamp, sizeof(svLastCommandExecuted));
             generate_data_flag();
         } break;
         case MQTT_CMD_SETDIRECTTICKET: {
             int dttimeout = strtoul(cmd.commandParam, NULL, 16);
             // k 这里要启动倒计时定时器，完成后标志设0
             svTicketDirectOut = 1;
-            gui_update_ticket_save(dttimeout);
+            gui_ticket_update_save_timer(dttimeout);
         }
         case MQTT_CMD_REBOOT: {
-            strcpy(svLastCommandExecuted, cmd.timeStamp);
-            LUAT_DEBUG_PRINT("Reboot required!");
+            strncpy(svLastCommandExecuted, cmd.timeStamp, sizeof(svLastCommandExecuted));
+            LOG("MQTT_CMD_REBOOT Reboot required!");
             luat_os_reboot(0);
         } break;
     }
@@ -474,119 +512,16 @@ void mqtt_data_cb_customer(char *data, uint32_t len) {
     if (len == 0)
         return;
 
-    WCustomer info;
-
-    if (json2Customer(data, &info) != 0) {
-        LUAT_DEBUG_PRINT("Mqtt_DataCallbackCommand() ERROR!!!! ");
+    if (json2Customer(data, &customer_info) != 0) {
+        LOG("Mqtt_DataCallbackCommand() ERROR!!!! ");
         return;
     }
 
-    gui_update_customer(&info);
+    gui_ticket_switch();
+    gui_ticket_set_customer_info(&customer_info);
 }
 
 /* clear json ptr */
 void mqtt_data_free(void *obj) {
     cJSON_free(obj);
 }
-
-#if 0 // 函数调用签名不正确
-void Testbench()
-{
-    // 测试解析第一个 JSON（ParseFirmwareConfig）
-    const char *json1 =
-        "{"
-        "\"firmwareVersion\":30,"
-        "\"firmwareUrl\":\"http://www.123.com/fw.bin\","
-        "\"resourceUrl\":\"http://..\","
-        "\"systemMode\":1,"
-        "\"payUrl\":\"http://\","
-        "\"saveTicketUrl\":\"http://xxxxx\","
-        "\"coinPulseWidth\":40,"
-        "\"ticketPulseWidth\":80,"
-        "\"coinPulseLow\":15,"
-        "\"coinPulseHigh\":105,"
-        "\"ticketPulseLow\":15,"
-        "\"ticketPulseHigh\":105,"
-        "\"coinPerPlay\":1,"
-        "\"direction\":2"
-        "}";
-
-    WConfig config = {0}; // 初始化结构体
-    if (json2Config(&json1, &config) == 0) {
-        LUAT_DEBUG_PRINT("Parsed firmware config successfully.");
-        LUAT_DEBUG_PRINT("Firmware Version: %d", config.firmwareVersion);
-        LUAT_DEBUG_PRINT("Firmware URL: %s", config.firmwareUrl);
-        LUAT_DEBUG_PRINT("Resource URL: %s", config.resourceUrl);
-        LUAT_DEBUG_PRINT("System Mode: %d", config.systemMode);
-        LUAT_DEBUG_PRINT("Pay URL: %s", config.payUrl);
-        LUAT_DEBUG_PRINT("Save Ticket URL: %s", config.saveTicketUrl);
-        LUAT_DEBUG_PRINT("Coin Pulse Width: %d", config.coinPulseWidth);
-        LUAT_DEBUG_PRINT("Ticket Pulse Width: %d", config.ticketPulseWidth);
-        LUAT_DEBUG_PRINT("Coin Pulse Low: %d", config.coinPulseLow);
-        LUAT_DEBUG_PRINT("Coin Pulse High: %d", config.coinPulseHigh);
-        LUAT_DEBUG_PRINT("Ticket Pulse Low: %d", config.ticketPulseLow);
-        LUAT_DEBUG_PRINT("Ticket Pulse High: %d", config.ticketPulseHigh);
-        LUAT_DEBUG_PRINT("Coin Per Play: %d", config.coinPerPlay);
-        LUAT_DEBUG_PRINT("Direction: %d", config.direction);
-    } else {
-        LUAT_DEBUG_PRINT("Failed to parse firmware config.");
-    }
-
-    // 测试解析第二个 JSON（json2Command）
-    const char *json2 =
-        "{"
-        "\"timeStamp\":\"0xABCDEF00ABCDEF00\","
-        "\"commandId\":1,"
-        "\"commandParam\":\"test\""
-        "}";
-
-    WCommand command = {0}; // 初始化结构体
-    if (json2Command(&json2, &command) == 0) {
-        LUAT_DEBUG_PRINT("Parsed command successfully.");
-        LUAT_DEBUG_PRINT("Time Stamp: 0x%016llX", command.timeStamp);
-        LUAT_DEBUG_PRINT("WCommand ID: %d", command.commandId);
-        LUAT_DEBUG_PRINT("WCommand Param: %s", command.commandParam);
-    } else {
-        LUAT_DEBUG_PRINT("Failed to parse command.");
-    }
-
-    // 测试组装第三个 JSON（status2Json）
-    WStatusReport statusReportData = {
-        .hardwareVersion = 1,
-        .firmwareVersion = 1,
-        .imei = "123456789012345",
-        .ticketDirectOut = -50,
-        .signal = 0,
-        .pinCoinerInit = 0,
-        .pinMbOnoffInit = 0,
-        .pinExtCountInit = 0,
-        .errorCode = 0
-    };
-
-    char *statusReportJson = NULL;
-    if (status2Json(&statusReportJson, &statusReportData) == 0 && statusReportJson) {
-        LUAT_DEBUG_PRINT("Status report JSON: %s", statusReportJson);
-        cJSON_free(statusReportJson); // 释放 JSON 字符串内存
-    } else {
-        LUAT_DEBUG_PRINT("Failed to create status report JSON.");
-    }
-
-    // 测试组装第四个 JSON（counters2Json）
-    WCounterReport coinPrizeReportData = {
-        .lastCommandTS = "123",
-        .coin = 12345,
-        .prize = 12345,
-        .ticketWantOut = 12345,
-        .ticketRealOut = 12345,
-        .ticketEmulated = 12345
-    };
-
-    char *coinPrizeReportJson = NULL;
-    if (counters2Json(&coinPrizeReportJson, &coinPrizeReportData) == 0 && coinPrizeReportJson) {
-        LUAT_DEBUG_PRINT("Coin prize report JSON: %s", coinPrizeReportJson);
-        cJSON_free(coinPrizeReportJson); // 释放 JSON 字符串内存
-    } else {
-        LUAT_DEBUG_PRINT("Failed to create coin prize report JSON.");
-    }
-}
-#endif

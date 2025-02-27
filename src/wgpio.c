@@ -93,8 +93,7 @@ static void IrqHandlerCoin(void *data, void *args) {
     /* UPRISING after an falling. it's exiting the interrupt.
     We set detect limit to between 20~120ms  */
     else {
-        if ((pps != coinSw1) && (SYSTICK() > MS2TICK(svCoinPulseWidthInLow) + tick) &&
-            (SYSTICK() < MS2TICK(svCoinPulseWidthInHigh) + tick)) {
+        if ((pps != coinSw1) && (SYSTICK() > MS2TICK(svCoinPulseWidthInLow) + tick) && (SYSTICK() < MS2TICK(svCoinPulseWidthInHigh) + tick)) {
             /* counter++, notify helper task */
             svCounterC++;
 
@@ -139,8 +138,7 @@ static void IrqHandlerPrizeExtCntMode1(void *data, void *args) {
     45/29 for another ticketer.
     We set detect limit to between 20~120ms  */
     else {
-        if ((pps != ticketerSw2) && (SYSTICK() > MS2TICK(svPrizePulseWidthInLow) + tick) &&
-            (SYSTICK() < MS2TICK(svPrizePulseWidthInHigh) + tick)) {
+        if ((pps != ticketerSw2) && (SYSTICK() > MS2TICK(svPrizePulseWidthInLow) + tick) && (SYSTICK() < MS2TICK(svPrizePulseWidthInHigh) + tick)) {
             /* update coin per prize only if it's doll machine. */
             svCounterD++;
 
@@ -329,8 +327,7 @@ void gpio_deinit(void) {
 }
 
 int gpio_toggle(int pin) {
-    int r = luat_gpio_get(pin);
-    r     = r ? 0 : 1;
+    int r = luat_gpio_get(pin) ? 0 : 1;
     luat_gpio_set(pin, r);
     return r;
 }

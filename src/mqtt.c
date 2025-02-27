@@ -23,6 +23,8 @@ static char PASSWORD[32]  = {0}; // "fkww_168";
 static bool mqtt_inited    = false;
 static bool mqtt_connected = false;
 
+static mqtt_callback mqtt_cb = NULL;
+
 // 结构
 typedef struct _MQTT_SUB_ACTIONS_DEF {
     char topicString[128];
@@ -60,8 +62,6 @@ static MQTT_SUB_ACTIONS_DEF MQTT_SUB_ACTIONS[] = {
     },
 };
 #define MQTT_SUB_ACTIONS_DEF_COUNT (sizeof(MQTT_SUB_ACTIONS) / sizeof(MQTT_SUB_ACTIONS_DEF))
-
-static void (*MQTT_PUB_AFTERCONNECT[])() = {mqtt_pub_counter};
 
 // 变量
 static luat_rtos_task_handle task_mqtt_handle = NULL;
@@ -119,19 +119,15 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event) {
                 mqtt_subscribe(&ctrl->broker, MQTT_SUB_ACTIONS[i].topicString, &msgId, MQTT_SUB_ACTIONS[i].qosLevel);
                 LOG("Subscribing to topic: %s, msgID %d", MQTT_SUB_ACTIONS[i].topicString, msgId);
             }
-            // 连接后的主动发布
-            for (int i = 0; i < sizeof(MQTT_PUB_AFTERCONNECT) / sizeof(MQTT_PUB_AFTERCONNECT[0]); i++) {
-                MQTT_PUB_AFTERCONNECT[i]();
-            }
+            // callback
+            if (mqtt_cb != NULL)
+                mqtt_cb(event);
             break;
         }
-
         case MQTT_MSG_PUBLISH: {
             const char *ptrTopic, *ptrData = NULL;
             uint16_t    topicLen   = mqtt_parse_pub_topic_ptr(ctrl->mqtt_packet_buffer, &ptrTopic);
             uint32_t    payloadLen = mqtt_parse_pub_msg_ptr(ctrl->mqtt_packet_buffer, &ptrData);
-            // LUAT_DEBUG_PRINT("MQTT_MSG_PUBLISH ----------> %d payload",
-            // payloadLen);
 
             for (int i = 0; i < MQTT_SUB_ACTIONS_DEF_COUNT; i++) {
                 if (memcmp(ptrTopic, MQTT_SUB_ACTIONS[i].topicString,
@@ -141,10 +137,10 @@ static void mqtt_main_callback(luat_mqtt_ctrl_t *ctrl, uint16_t event) {
             }
             break;
         }
-
         case MQTT_MSG_PUBACK:
             luat_rtos_semaphore_release(mqtt_sema_puback);
             LUAT_DEBUG_PRINT("MQTT_MSG_PUBACK received.");
+            break;
         case MQTT_MSG_PUBCOMP:
             // {
             // 	uint16_t ackMsgId = mqtt_parse_msg_id(ctrl->mqtt_packet_buffer);
@@ -247,7 +243,7 @@ static void mqtt_main_routine(void *param) {
 
     // last will, recevice after 3 ping periods
     char  mqtt_will_topic[64];
-    char *mqtt_will_buf = "{}\n"; // k
+    char *mqtt_will_buf = "{}\n"; // k last will
     sprintf(mqtt_will_topic, "/device/%s/state", svSystemID);
     luat_mqtt_set_will(&mqttHandle->broker, mqtt_will_topic, mqtt_will_buf, strlen(mqtt_will_buf), 1, 1);
 
@@ -296,8 +292,10 @@ static void mqtt_main_routine(void *param) {
 
 // 发布数据
 int mqtt_publish_data(char *topic, char *json, char retain, char qos) {
-    if (!mqtt_connected)
+    if (!mqtt_connected) {
+        LOG("mqtt_publish_data mqtt_connected==0 return");
         return 0;
+    }
 
     MQTT_MSG *msg = (MQTT_MSG *)LUAT_MEM_MALLOC(sizeof(MQTT_MSG));
     strcpy(msg->topic, topic);
@@ -346,4 +344,8 @@ void mqtt_task_deinit(void) {
     }
 
     LUAT_DEBUG_PRINT("mqtt_task_deinit end");
+}
+
+void mqtt_set_status_callback(mqtt_callback cb) {
+    mqtt_cb = cb;
 }

@@ -11,6 +11,8 @@ v5 20250208
 	增加遗嘱，命令去掉命令3，改变数据上报模式为卡头不保存累计值模式，增加存票数据
 v6 20250211
 	确定加密方式、细节修正。
+v7 20250225
+	增加machineName，增加ticketUrl
 
 # 备注
 mqtt qos 除非特别说明，使用 level 1（最少送达1次）
@@ -54,7 +56,9 @@ mqtt qos 除非特别说明，使用 level 1（最少送达1次）
 		"fimwareVersion" : 30,						// 必备，数字，卡头发现版本比自己高，则主动升级；同时fw版本和协议版本绑定
 		"fimwareUrl" : "http://www.123.com/fw.sota"	// 必备，固件地址，使用HTTP Basic Auth
 		"systemMode" : 1,    						// 必备，1：礼品机卡头，2：彩票机卡头
-		"payUrl" : "http://urlto.png",				// 扫码=投币 url，或彩票卡头进入虚拟出票
+		"machineName" : "恐龙城堡 - 1号机",          // 机器名称, 最多64byte（20汉字）
+		"payUrl" : "http://urlto.png",				// 扫码=投币 url，或彩票卡头进入虚拟出票，最多256字节
+		"ticketUrl" : "http://...",                 // 数票界面URL，最多256字节
 		"coinPulseWidth" ： 40,						// 投币器脉冲宽度 20到100，默认40
 		"ticketPulseWidth" : 80, 					// 模拟彩票机脉冲宽度，仅模式2
 		"coinPulseLow" : 15,     				    // 投币识别脉冲最低值

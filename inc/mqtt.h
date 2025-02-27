@@ -6,8 +6,11 @@
 #define MQTT_AUTOCON        1 // 是否自动重连
 #define MQTT_DEVICE_ID      svSystemID
 
+typedef void (*mqtt_callback)(uint16_t status);
+
 int  mqtt_publish_data(char *topic, char *json, char retain, char qos);
 void mqtt_task_init(const char *host, const int port, const char *username, const char *password);
 void mqtt_task_deinit(void);
+void mqtt_set_status_callback(mqtt_callback cb);
 
 #endif

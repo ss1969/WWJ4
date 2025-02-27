@@ -8,11 +8,12 @@ MQTT测试数据
 1， /device/4e453432310fc03e45ff/config
 
 {
-    "firmwareVersion": 3,
+    "firmwareVersion": 1,
     "firmwareUrl": "http://darksnow.cn:9999/Source_301301544_LuatOS_CSDK_EC7XX.sota",
-    "resourceUrl": "http://..",
     "systemMode": 1,
-    "payUrl": "http://",
+    "payUrl": "http://payUrlpayUrl",
+    "ticketUrl": "http://ticketUrlticketUrl",
+    "machineName": "飞翔大地-8号机器 七十二六",
     "saveTicketUrl": "http://xxxxx",
     "coinPulseWidth": 40,
     "ticketPulseWidth": 80,

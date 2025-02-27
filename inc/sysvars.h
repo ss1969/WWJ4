@@ -30,7 +30,9 @@ extern char    svSystemID[SYSTEM_ID_LENGTH * 2 + 1];
 extern uint8_t svDeviceType;
 extern uint8_t svDeviceDirection;
 extern uint8_t svDeviceStatus;
-extern char    svUrlWXPay[256];
+extern char    svMachineName[64];
+extern char    svPayUrl[256];
+extern char    svTicketUrl[256];
 extern char   *svHttpServer;
 
 extern uint8_t svCoinSw2;

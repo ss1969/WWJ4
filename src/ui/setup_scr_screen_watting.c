@@ -148,28 +148,28 @@ void setup_scr_screen_watting(lv_ui *ui)
     lv_obj_set_style_pad_left(ui->screen_watting_label_4, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_width(ui->screen_watting_label_4, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
 
-    //Write codes screen_watting_label_5
-    ui->screen_watting_label_5 = lv_label_create(ui->screen_watting);
-    lv_obj_set_pos(ui->screen_watting_label_5, 17, 9);
-    lv_obj_set_size(ui->screen_watting_label_5, 235, 21);
-    lv_label_set_text(ui->screen_watting_label_5, "恐龙城堡 - 1号机");
-    lv_label_set_long_mode(ui->screen_watting_label_5, LV_LABEL_LONG_WRAP);
+    //Write codes screen_watting_lb_machine
+    ui->screen_watting_lb_machine = lv_label_create(ui->screen_watting);
+    lv_obj_set_pos(ui->screen_watting_lb_machine, 17, 9);
+    lv_obj_set_size(ui->screen_watting_lb_machine, 235, 21);
+    lv_label_set_text(ui->screen_watting_lb_machine, "恐龙城堡 - 1号机");
+    lv_label_set_long_mode(ui->screen_watting_lb_machine, LV_LABEL_LONG_WRAP);
 
-    //Write style for screen_watting_label_5, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
-    lv_obj_set_style_border_width(ui->screen_watting_label_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_radius(ui->screen_watting_label_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_color(ui->screen_watting_label_5, lv_color_hex(0x000000), LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui->screen_watting_label_5, &lv_font_NotoSansCJKscMedium_18, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui->screen_watting_label_5, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_letter_space(ui->screen_watting_label_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_line_space(ui->screen_watting_label_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_align(ui->screen_watting_label_5, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui->screen_watting_label_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui->screen_watting_label_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui->screen_watting_label_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui->screen_watting_label_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_left(ui->screen_watting_label_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_shadow_width(ui->screen_watting_label_5, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    //Write style for screen_watting_lb_machine, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
+    lv_obj_set_style_border_width(ui->screen_watting_lb_machine, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui->screen_watting_lb_machine, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui->screen_watting_lb_machine, lv_color_hex(0x000000), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui->screen_watting_lb_machine, &lv_font_NotoSansCJKscMedium_18, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui->screen_watting_lb_machine, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_letter_space(ui->screen_watting_lb_machine, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_line_space(ui->screen_watting_lb_machine, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui->screen_watting_lb_machine, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui->screen_watting_lb_machine, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui->screen_watting_lb_machine, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui->screen_watting_lb_machine, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui->screen_watting_lb_machine, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui->screen_watting_lb_machine, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_width(ui->screen_watting_lb_machine, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
 
     //The custom code of screen_watting.
 

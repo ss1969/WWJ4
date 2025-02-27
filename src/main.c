@@ -10,6 +10,7 @@
 #include "luat_crypto.h"
 #include "wdt.h"
 #include "mbedtls/base64.h"
+#include "libemqtt.h"
 
 #include "sysvars.h"
 #include "wgpio.h"
@@ -21,6 +22,7 @@
 #include "mqttdata.h"
 #include "wrapper.h"
 #include "gui.h"
+#include "defines.h"
 
 #define HTTP_CRYPTO_KEY        "IcG6OnMCLgii7McbzuTtLNSbS7XU4F9G"
 #define CRYPTO_AES_CBC_IV_SIZE 16
@@ -28,6 +30,7 @@
 #define CRYPTO_PAD             "PKCS7"
 
 static luat_rtos_task_handle task_main_handle;
+static bool                  first = true; // first time connect
 
 extern void cli_task_init(void);
 extern void lvgl_task_init(void);
@@ -125,21 +128,42 @@ void http_data_rx_cb(const char *data, const int size, HTTP_STATUS status) {
     }
 }
 
-bool first = false;
 void mobile_ready_status_cb(bool ready) {
-    if (ready & !first) {
+    bool    r      = false;
+    uint8_t signal = 0;
+    char   *imei = NULL, *imsi = NULL, *iccid = NULL, *phone = NULL;
+    mobile_get_status(&r, &signal, &imei, &imsi, &iccid, &phone);
+    gui_all_set_signal(ready, mobile_detect_card(), signal);
+
+    if (ready & first) {
         http_get(svHttpServer, http_data_rx_cb);
-        first = true;
-    }
-    else {
-        // k 现在先不在网络断掉的时候做事
-        //  mqtt_task_deinit();
+        first = false;
     }
 }
 
-void mobile_info_cb(int signal, char *imei, char *imsi, char *iccid, char *phone) {
+void mobile_info_cb(void) {
+    bool    ready  = false;
+    uint8_t signal = 0;
+    char   *imei = NULL, *imsi = NULL, *iccid = NULL, *phone = NULL;
+    mobile_get_status(&ready, &signal, &imei, &imsi, &iccid, &phone);
     mqtt_pub_status(signal, imei, imsi, iccid, phone);
-    gui_unbind_set_signal(mobile_detect_card(), signal);
+    gui_all_set_signal(ready, mobile_detect_card(), signal);
+}
+
+void mqtt_status_cb(uint16_t status) {
+    switch (status) {
+        case MQTT_MSG_CONNACK: {
+            bool    ready  = false;
+            uint8_t signal = 0;
+            char   *imei = NULL, *imsi = NULL, *iccid = NULL, *phone = NULL;
+            mobile_get_status(&ready, &signal, &imei, &imsi, &iccid, &phone);
+            mqtt_pub_status(signal, imei, imsi, iccid, phone);
+            gui_all_set_signal(ready, mobile_detect_card(), signal);
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 /* 主初始化线程 */
@@ -158,6 +182,7 @@ static void main_main_routine(void *param) {
     mobile_task_init();
     mqtt_task_init("mq.catchtoy.cn", 9883, "admin", "fkww_168");
 #endif
+    mqtt_set_status_callback(mqtt_status_cb);
     lvgl_task_init();
     generate_data_flag();
 

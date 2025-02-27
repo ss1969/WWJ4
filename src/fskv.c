@@ -93,7 +93,9 @@ static void fskv_read_data(void) {
     ef_get_num("w", &svCounterW);
 
     /* read settings */
-    ef_get_str("urlWxPay", svUrlWXPay);
+    ef_get_str("payUrl", svPayUrl);
+    ef_get_str("ticketUrl", svTicketUrl);
+    ef_get_str("machineName", svMachineName);
     ef_get_num8("dstatus", &svDeviceStatus);
     ef_get_num8("dtype", &svDeviceType);
     ef_get_num8("coinsw2", &svCoinSw2);
@@ -121,7 +123,9 @@ void fskv_reset_data(void) {
     ef_set_num("w", svCounterW);
 
     /* set settings */
-    strcpy(svUrlWXPay, "");
+    strcpy(svPayUrl, "");
+    strcpy(svTicketUrl, "");
+    strcpy(svMachineName, "");
     svDeviceStatus          = 1;
     svDeviceType            = 2;
     svCoinSw2               = 40;
@@ -133,7 +137,9 @@ void fskv_reset_data(void) {
     svCoinPerPlay           = 1;
     svCoinPerPlay2          = 2;
     svTEpulse               = 80;
-    ef_set_str("urlWxPay", svUrlWXPay);
+    ef_set_str("payUrl", svPayUrl);
+    ef_set_str("ticketUrl", svTicketUrl);
+    ef_set_str("machineName", svMachineName);
     ef_set_num8("dstatus", svDeviceStatus);
     ef_set_num8("dtype", svDeviceType);
     ef_set_num8("coinsw2", svCoinSw2);
@@ -163,17 +169,17 @@ static void fskv_dev_init(void) {
 }
 
 static void fskv_main_rountine(void *param) {
-#define SETNUM(k, v)                                                                                                   \
-    v = event.param1;                                                                                                  \
-    ef_set_num(k, v);                                                                                                  \
+#define SETNUM(k, v)                                                                                                                                           \
+    v = event.param1;                                                                                                                                          \
+    ef_set_num(k, v);                                                                                                                                          \
     break;
-#define SETNU8(k, v)                                                                                                   \
-    v = event.param1;                                                                                                  \
-    ef_set_num8(k, v);                                                                                                 \
+#define SETNU8(k, v)                                                                                                                                           \
+    v = event.param1;                                                                                                                                          \
+    ef_set_num8(k, v);                                                                                                                                         \
     break;
-#define SETSTR(k, v)                                                                                                   \
-    strncpy(v, (char *)event.param1, sizeof(v));                                                                       \
-    ef_set_str(k, v);                                                                                                  \
+#define SETSTR(k, v)                                                                                                                                           \
+    strncpy(v, (char *)event.param1, sizeof(v));                                                                                                               \
+    ef_set_str(k, v);                                                                                                                                          \
     break;
 
     int          ret;
@@ -222,7 +228,11 @@ static void fskv_main_rountine(void *param) {
                 SETNU8("tepulse", svTEpulse);
             // string types
             case FSKV_EVT_URL_WXPAY:
-                SETSTR("urlWxPay", svUrlWXPay);
+                SETSTR("payUrl", svPayUrl);
+            case FSKV_EVT_URL_TICKET:
+                SETSTR("ticketUrl", svTicketUrl);
+            case FSKV_EVT_MACHINE_NAME:
+                SETSTR("machineName", svMachineName);
             default:
                 break;
         }

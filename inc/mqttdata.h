@@ -9,7 +9,9 @@ typedef struct {
     int  firmwareVersion;
     char firmwareUrl[256];
     int  systemMode;
+    char machineName[64];
     char payUrl[256];
+    char ticketUrl[256];
     int  coinPulseWidth;
     int  ticketPulseWidth;
     int  coinPulseLow;
@@ -72,7 +74,7 @@ void mqtt_data_cb_command(char *data, uint32_t len);
 void mqtt_data_cb_customer(char *data, uint32_t len);
 void mqtt_pub_status(int signal, char *imei, char *imsi, char *iccid, char *phone);
 void mqtt_pub_counter(void);
-void mqtt_pub_ticket_save(int userID, int ticketAdd, int ticketDirectOut);
+void mqtt_pub_ticket_save(void);
 void mqtt_pub_sms(char *time, char *phone, char *pdu);
 void mqtt_data_free(void *obj);
 

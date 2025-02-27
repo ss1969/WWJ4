@@ -8,6 +8,7 @@
 #include "str2x.h"
 #include "mobile.h"
 #include "wrapper.h"
+#include "defines.h"
 
 #define MOBILE_CELL_REFRESH_TIME 120 * 1000
 
@@ -22,11 +23,12 @@ static net_status_callback     net_ready_cb = NULL;
 static net_sms_callback        net_sms_cb   = NULL;
 static net_info_callback       net_info_cb  = NULL;
 
-static uint8_t signal    = 0;   /* 信号强度 */
-static char    imei[20]  = {0}; /* IMEI */
-static char    imsi[20]  = {0}; /* IMSI */
-static char    iccid[24] = {0}; /* ICCID */
-static char    phone[24] = {0}; /* Number */
+static bool    _net_ready = false;
+static uint8_t _signal = 0, __signal = 0; /* 信号强度 */
+static char    _imei[20]  = {0};          /* IMEI */
+static char    _imsi[20]  = {0};          /* IMSI */
+static char    _iccid[24] = {0};          /* ICCID */
+static char    _phone[24] = {0};          /* Number */
 
 static void sms_recv_cb(uint32_t event, void *param) {
     LUAT_DEBUG_PRINT("sms_recv_cb:[%d]", event);
@@ -58,21 +60,17 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
             switch (status) {
                 case LUAT_MOBILE_SIM_READY:
                     LOG("SIM卡正常工作");
-                    luat_mobile_get_imei(0, imei, sizeof(imei));
-                    LOG("IMEI: %s", imei);
-                    luat_mobile_get_imsi(0, imsi, sizeof(imsi));
-                    LOG("IMSI: %s", imsi);
-                    luat_mobile_get_iccid(0, iccid, sizeof(iccid));
-                    LOG("ICCID: %s", iccid);
-                    if (net_info_cb != NULL)
-                        net_info_cb(signal, imei, imsi, iccid, phone);
+                    luat_mobile_get_imei(0, _imei, sizeof(_imei));
+                    LOG("IMEI: %s", _imei);
+                    luat_mobile_get_imsi(0, _imsi, sizeof(_imsi));
+                    LOG("IMSI: %s", _imsi);
+                    luat_mobile_get_iccid(0, _iccid, sizeof(_iccid));
+                    LOG("ICCID: %s", _iccid);
                     break;
                 case LUAT_MOBILE_NO_SIM:
-                    memset(imsi, 0, sizeof(imsi));
-                    memset(iccid, 0, sizeof(iccid));
-                    memset(phone, 0, sizeof(phone));
-                    if (net_info_cb != NULL)
-                        net_info_cb(signal, imei, imsi, iccid, phone);
+                    memset(_imsi, 0, sizeof(_imsi));
+                    memset(_iccid, 0, sizeof(_iccid));
+                    memset(_phone, 0, sizeof(_phone));
                     LOG("SIM卡不存在");
                     break;
                 case LUAT_MOBILE_SIM_NEED_PIN:
@@ -86,10 +84,8 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
             rs = status;
             if (status == LUAT_MOBILE_STATUS_REGISTERED) {
                 LOG("移动网络服务状态变更: REGISTERED");
-                luat_mobile_get_sim_number(0, phone, sizeof(phone));
-                LUAT_DEBUG_PRINT("Phone: %s", phone);
-                if (net_info_cb != NULL)
-                    net_info_cb(signal, imei, imsi, iccid, phone);
+                luat_mobile_get_sim_number(0, _phone, sizeof(_phone));
+                LOG("Phone: %s", _phone);
             }
             else {
                 LOG("移动网络服务状态变更: %d", status);
@@ -99,24 +95,24 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
             switch (status) {
                 case LUAT_MOBILE_CELL_INFO_UPDATE:
 #if 0 // 小区信息，没用不显示了
-			LUAT_DEBUG_PRINT("周期性搜索小区信息完成一次");
+			LOG("周期性搜索小区信息完成一次");
 			luat_mobile_get_last_notify_cell_info(&s_cell_info);
 			if (s_cell_info.lte_service_info.cid)
 			{
-				LUAT_DEBUG_PRINT("服务小区信息 mcc %x mnc %x cellid %u band %d tac %u pci %u earfcn %u is_tdd %d rsrp %d rsrq %d snr %d rssi %d",
-						s_cell_info.lte_service_info.mcc, s_cell_info.lte_service_info.mnc, s_cell_info.lte_service_info.cid,
-						s_cell_info.lte_service_info.band, s_cell_info.lte_service_info.tac, s_cell_info.lte_service_info.pci, s_cell_info.lte_service_info.earfcn,
-						s_cell_info.lte_service_info.is_tdd, s_cell_info.lte_service_info.rsrp, s_cell_info.lte_service_info.rsrq,
-						s_cell_info.lte_service_info.snr, s_cell_info.lte_service_info.rssi);
+				LOG("服务小区信息 mcc %x mnc %x cellid %u band %d tac %u pci %u earfcn %u is_tdd %d rsrp %d rsrq %d snr %d rssi %d",
+                    s_cell_info.lte_service_info.mcc, s_cell_info.lte_service_info.mnc, s_cell_info.lte_service_info.cid,
+                    s_cell_info.lte_service_info.band, s_cell_info.lte_service_info.tac, s_cell_info.lte_service_info.pci, s_cell_info.lte_service_info.earfcn,
+                    s_cell_info.lte_service_info.is_tdd, s_cell_info.lte_service_info.rsrp, s_cell_info.lte_service_info.rsrq,
+                    s_cell_info.lte_service_info.snr, s_cell_info.lte_service_info.rssi);
 			}
 			for (i = 0; i < s_cell_info.lte_neighbor_info_num; i++)
 			{
 				if (s_cell_info.lte_info[i].cid)
 				{
-					LUAT_DEBUG_PRINT("邻小区 %d mcc %x mnc %x cellid %u tac %u pci %u", i + 1, s_cell_info.lte_info[i].mcc,
-							s_cell_info.lte_info[i].mnc, s_cell_info.lte_info[i].cid, s_cell_info.lte_info[i].tac, s_cell_info.lte_info[i].pci);
-					LUAT_DEBUG_PRINT("邻小区 %d earfcn %u rsrp %d rsrq %d snr %d", i + 1, s_cell_info.lte_info[i].earfcn, s_cell_info.lte_info[i].rsrp,
-							s_cell_info.lte_info[i].rsrq, s_cell_info.lte_info[i].snr);
+					LOG("邻小区 %d mcc %x mnc %x cellid %u tac %u pci %u", i + 1, s_cell_info.lte_info[i].mcc,
+                        s_cell_info.lte_info[i].mnc, s_cell_info.lte_info[i].cid, s_cell_info.lte_info[i].tac, s_cell_info.lte_info[i].pci);
+					LOG("邻小区 %d earfcn %u rsrp %d rsrq %d snr %d", i + 1, s_cell_info.lte_info[i].earfcn, s_cell_info.lte_info[i].rsrp,
+                        s_cell_info.lte_info[i].rsrq, s_cell_info.lte_info[i].snr);
 				}
 			}
 #endif
@@ -124,9 +120,15 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
                 case LUAT_MOBILE_SIGNAL_UPDATE:
                     luat_mobile_get_last_notify_signal_strength_info(&signal_info);
                     luat_mobile_get_last_notify_signal_strength(&csq);
-                    signal = csq;
-                    if (net_info_cb != NULL)
-                        net_info_cb(signal, imei, imsi, iccid, phone);
+                    if (csq > 30) // 正常0~30
+                        break;
+                    _signal = csq;
+                    if (abs(_signal - __signal) >= SIGNAL_REPORT_THRESHOLD) {
+                        LOG("SIGNAL > %d UPDATE %d", SIGNAL_REPORT_THRESHOLD, _signal);
+                        if (net_info_cb != NULL)
+                            net_info_cb();
+                        __signal = _signal;
+                    }
 #if 0 // k 信号强度，不显示LOG了
                     if (signal_info.luat_mobile_lte_signal_strength_vaild) {
                         LOG("信号状态变更 rsrp %d, rsrq %d, snr %d, rssi %d, csq %d %d",
@@ -149,7 +151,7 @@ static void mobile_event_cb(LUAT_MOBILE_EVENT_E event, uint8_t index, uint8_t st
         case LUAT_MOBILE_EVENT_NETIF:
             switch (status) {
                 case LUAT_MOBILE_NETIF_LINK_ON:
-                    LOG("Internet 状态变更为 Ready");
+                    LOG("----------- Internet 状态变更为 Ready ---------");
                     if (luat_mobile_get_apn(0, 0, apn, sizeof(apn))) {
                         LOG("APN %s", apn);
                     }
@@ -202,69 +204,6 @@ static void mobile_get_band_string(uint8_t band1[], uint8_t total_num1, char *re
     }
 }
 
-void mobile_set_sn(char *newSn) {
-    luat_mobile_set_sn(newSn, 32);
-    char sn[33] = {0};
-    luat_mobile_get_sn(sn, sizeof(sn));
-    LUAT_DEBUG_PRINT("SN %s", sn);
-}
-
-void mobile_get_muid(void) {
-    char muid[64] = {0};
-    luat_mobile_get_muid(muid, sizeof(muid));
-    LUAT_DEBUG_PRINT("MUID %s", muid);
-}
-
-void mobile_get_band(void) {
-    uint8_t band[32];
-    uint8_t total_num;
-    luat_mobile_get_band(band, &total_num);
-    char buf[128];
-    mobile_get_band_string(band, total_num, buf, sizeof(buf));
-    LUAT_DEBUG_PRINT("%s", buf);
-}
-
-void mobile_get_cell_info(void) {
-    luat_mobile_cell_info_t cell_info;
-    luat_mobile_get_cell_info_async(6);
-    luat_rtos_task_sleep(15 * 1000);
-    luat_mobile_get_cell_info(&cell_info);
-
-    if (cell_info.lte_service_info.cid) {
-        LUAT_DEBUG_PRINT("服务小区信息 mcc %x mnc %x cellid %u band %d tac %u pci %u earfcn %u is_tdd %d rsrp %d rsrq %d snr %d "
-                         "rssi %d",
-                         cell_info.lte_service_info.mcc,
-                         cell_info.lte_service_info.mnc,
-                         cell_info.lte_service_info.cid,
-                         cell_info.lte_service_info.band,
-                         cell_info.lte_service_info.tac,
-                         cell_info.lte_service_info.pci,
-                         cell_info.lte_service_info.earfcn,
-                         cell_info.lte_service_info.is_tdd,
-                         cell_info.lte_service_info.rsrp,
-                         cell_info.lte_service_info.rsrq,
-                         cell_info.lte_service_info.snr,
-                         cell_info.lte_service_info.rssi);
-    }
-    for (int i = 0; i < cell_info.lte_neighbor_info_num; i++) {
-        if (cell_info.lte_info[i].cid) {
-            LUAT_DEBUG_PRINT("邻小区 %d mcc %x mnc %x cellid %u tac %u pci %u",
-                             i + 1,
-                             cell_info.lte_info[i].mcc,
-                             cell_info.lte_info[i].mnc,
-                             cell_info.lte_info[i].cid,
-                             cell_info.lte_info[i].tac,
-                             cell_info.lte_info[i].pci);
-            LUAT_DEBUG_PRINT("邻小区 %d earfcn %u rsrp %d rsrq %d snr %d",
-                             i + 1,
-                             cell_info.lte_info[i].earfcn,
-                             cell_info.lte_info[i].rsrp,
-                             cell_info.lte_info[i].rsrq,
-                             cell_info.lte_info[i].snr);
-        }
-    }
-}
-
 static void mobile_main_task(void *param) {
 
     int          ret;
@@ -277,8 +216,9 @@ static void mobile_main_task(void *param) {
         }
         switch (event.id) {
             case MOBILE_NETIF:
+                _net_ready = event.param1;
                 if (net_ready_cb != NULL) {
-                    net_ready_cb(event.param1);
+                    net_ready_cb(_net_ready);
                 }
                 break;
             case MOBILE_SMS: {
@@ -348,27 +288,98 @@ char *mobile_detect_card(void) {
     uint16_t mcc;
     uint8_t  mnc;
 
-    luat_mobile_get_plmn_from_imsi(imsi, &mcc, &mnc);
+    luat_mobile_get_plmn_from_imsi(_imsi, &mcc, &mnc);
     int result = luat_mobile_get_isp_from_plmn(mcc, mnc);
 
     switch (result) {
         case LUAT_MOBILE_ISP_CMCC:
-            return ("中国移动卡");
+            return ("中国移动");
             break;
         case LUAT_MOBILE_ISP_CTCC:
-            return ("中国电信卡");
+            return ("中国电信");
             break;
         case LUAT_MOBILE_ISP_CUCC:
-            return ("中国联通卡");
+            return ("中国联通");
             break;
         case LUAT_MOBILE_ISP_CRCC:
-            return ("中国广电卡");
+            return ("中国广电");
             break;
         case LUAT_MOBILE_ISP_UNKNOW:
-            return ("未知运营商");
+            return ("未知卡");
             break;
         default:
             return ("非中国卡");
             break;
     }
+}
+void mobile_set_sn(char *newSn) {
+    luat_mobile_set_sn(newSn, 32);
+    char sn[33] = {0};
+    luat_mobile_get_sn(sn, sizeof(sn));
+    LOG("SN %s", sn);
+}
+
+void mobile_get_muid(void) {
+    char muid[64] = {0};
+    luat_mobile_get_muid(muid, sizeof(muid));
+    LOG("MUID %s", muid);
+}
+
+void mobile_get_band(void) {
+    uint8_t band[32];
+    uint8_t total_num;
+    luat_mobile_get_band(band, &total_num);
+    char buf[128];
+    mobile_get_band_string(band, total_num, buf, sizeof(buf));
+    LOG("BAND: %s", buf);
+}
+
+void mobile_get_cell_info(void) {
+    luat_mobile_cell_info_t cell_info;
+    luat_mobile_get_cell_info_async(6);
+    luat_rtos_task_sleep(15 * 1000);
+    luat_mobile_get_cell_info(&cell_info);
+
+    if (cell_info.lte_service_info.cid) {
+        LOG("服务小区信息 mcc %x mnc %x cellid %u band %d tac %u pci %u earfcn %u is_tdd %d rsrp %d rsrq %d snr %d "
+            "rssi %d",
+            cell_info.lte_service_info.mcc,
+            cell_info.lte_service_info.mnc,
+            cell_info.lte_service_info.cid,
+            cell_info.lte_service_info.band,
+            cell_info.lte_service_info.tac,
+            cell_info.lte_service_info.pci,
+            cell_info.lte_service_info.earfcn,
+            cell_info.lte_service_info.is_tdd,
+            cell_info.lte_service_info.rsrp,
+            cell_info.lte_service_info.rsrq,
+            cell_info.lte_service_info.snr,
+            cell_info.lte_service_info.rssi);
+    }
+    for (int i = 0; i < cell_info.lte_neighbor_info_num; i++) {
+        if (cell_info.lte_info[i].cid) {
+            LOG("邻小区 %d mcc %x mnc %x cellid %u tac %u pci %u",
+                i + 1,
+                cell_info.lte_info[i].mcc,
+                cell_info.lte_info[i].mnc,
+                cell_info.lte_info[i].cid,
+                cell_info.lte_info[i].tac,
+                cell_info.lte_info[i].pci);
+            LOG("邻小区 %d earfcn %u rsrp %d rsrq %d snr %d",
+                i + 1,
+                cell_info.lte_info[i].earfcn,
+                cell_info.lte_info[i].rsrp,
+                cell_info.lte_info[i].rsrq,
+                cell_info.lte_info[i].snr);
+        }
+    }
+}
+
+void mobile_get_status(bool *ready, uint8_t *signal, char **imei, char **imsi, char **iccid, char **phoneNumber) {
+    *ready       = _net_ready;
+    *signal      = _signal;
+    *imei        = _imei;
+    *imsi        = _imsi;
+    *iccid       = _iccid;
+    *phoneNumber = _phone;
 }
